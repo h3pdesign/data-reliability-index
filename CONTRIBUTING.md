@@ -33,3 +33,5 @@ mkdocs serve
 - Preserve existing behavior unless the change explicitly updates it.
 - Add or update tests when changing package behavior.
 - Update documentation when public APIs, examples, or workflows change.
+
+By participating in this project, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).

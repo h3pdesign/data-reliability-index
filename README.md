@@ -114,4 +114,4 @@ Please report security issues privately. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-No license has been declared yet. Add a license before distributing this project for external reuse.
+Licensed under the [Apache License 2.0](LICENSE).

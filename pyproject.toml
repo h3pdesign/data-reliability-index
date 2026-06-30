@@ -8,6 +8,23 @@ version = "0.1.0"
 description = "Data Reliability Index - native validation and filtering of datasets."
 readme = "README.md"
 requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [
+    { name = "h3pdesign" }
+]
+keywords = ["data-quality", "data-reliability", "validation", "pydantic", "pandas"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "pydantic>=2.0",
     "pandas>=2.0",
@@ -17,3 +34,9 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/h3pdesign/data-reliability-index"
+Documentation = "https://h3pdesign.github.io/data-reliability-index/"
+Repository = "https://github.com/h3pdesign/data-reliability-index"
+Issues = "https://github.com/h3pdesign/data-reliability-index/issues"
