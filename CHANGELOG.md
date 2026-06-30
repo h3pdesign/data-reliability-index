@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.4.0] - 2026-06-30
+
+### Added
+
+- Profile name and version metadata on each scored record.
+- HMAC-SHA256 signature helpers for authenticated payload verification.
+- Batch and streaming row scanning helpers for larger datasets.
+- SQL DDL helpers for SQLite, PostgreSQL, MySQL, and DuckDB reliability columns.
+- Optional extras for PostgreSQL, MySQL, DuckDB, MongoDB, Polars, and PyArrow integrations.
+- Integration tests for SQL rows, document metadata, DataFrames, row dictionaries, and sequence payloads.
+
 ## [0.3.0] - 2026-06-30
 
 ### Added

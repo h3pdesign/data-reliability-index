@@ -1,11 +1,15 @@
 from .core import DataTier, ReliableData, ReliabilityDecision, ReliabilityMetadata, ReliabilityPolicy
 from .database import (
     RELIABILITY_COLUMNS,
+    iter_scan_rows,
     metadata_from_columns,
     metadata_from_document,
     metadata_to_columns,
     metadata_to_document,
+    reliability_column_definitions,
+    reliability_columns_ddl,
     scan_row,
+    scan_rows,
     trusted_records,
 )
 from .pandas_ext import filter_reliable_df
@@ -16,9 +20,11 @@ from .scanner import (
     TierCriterion,
     ValidationEvidence,
     climate_record_profile,
+    compute_hmac_signature,
     compute_trace_hash,
     default_profile,
     scientific_profile,
+    verify_hmac_signature,
 )
 
 __all__ = [
@@ -34,14 +40,20 @@ __all__ = [
     "ValidationEvidence",
     "RELIABILITY_COLUMNS",
     "climate_record_profile",
+    "compute_hmac_signature",
     "compute_trace_hash",
     "default_profile",
     "filter_reliable_df",
+    "iter_scan_rows",
     "metadata_from_columns",
     "metadata_from_document",
     "metadata_to_columns",
     "metadata_to_document",
+    "reliability_column_definitions",
+    "reliability_columns_ddl",
     "scan_row",
+    "scan_rows",
     "scientific_profile",
     "trusted_records",
+    "verify_hmac_signature",
 ]

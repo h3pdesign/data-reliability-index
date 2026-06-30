@@ -5,6 +5,7 @@ from data_reliability.scanner import (
     TierCriterion,
     ValidationEvidence,
     climate_record_profile,
+    compute_hmac_signature,
     compute_trace_hash,
     scientific_profile,
 )
@@ -13,7 +14,10 @@ from data_reliability.database import (
     metadata_from_document,
     metadata_to_columns,
     metadata_to_document,
+    reliability_column_definitions,
+    reliability_columns_ddl,
     scan_row,
+    scan_rows,
     trusted_records,
 )
 
@@ -60,6 +64,8 @@ def test_scanner_assigns_tier_one_for_verified_high_quality_data():
     assert reliable.value == value
     assert reliable.reliability.score == 100
     assert reliable.reliability.tier == DataTier.TIER_1
+    assert reliable.reliability.profile_name == "default"
+    assert reliable.reliability.profile_version == "1"
     assert reliable.reliability.trace_hash == compute_trace_hash(value, "sensor-a")
 
 def test_scanner_penalizes_missing_required_fields():
@@ -89,6 +95,35 @@ def test_scanner_uses_trace_hash_verification():
     )
 
     assert reliable.reliability.tamper_resistance == 1.0
+
+def test_scanner_uses_hmac_signature_verification():
+    scanner = ReliabilityScanner()
+    value = {"temperature": 21.4}
+    signature = compute_hmac_signature(value, "sensor-a", "secret")
+
+    reliable = scanner.scan(
+        value,
+        "sensor-a",
+        ValidationEvidence(cryptographic_verification=0.0),
+        expected_signature=signature,
+        signing_secret="secret",
+    )
+
+    assert reliable.reliability.tamper_resistance == 1.0
+
+def test_scanner_rejects_invalid_hmac_signature():
+    scanner = ReliabilityScanner()
+
+    reliable = scanner.scan(
+        {"temperature": 21.4},
+        "sensor-a",
+        ValidationEvidence(cryptographic_verification=1.0),
+        expected_signature="invalid",
+        signing_secret="secret",
+    )
+
+    assert reliable.reliability.tamper_resistance == 0.0
+    assert "Signature verification failed." in reliable.reliability.notes
 
 def test_policy_resolves_reliable_data():
     scanner = ReliabilityScanner()
@@ -175,6 +210,7 @@ def test_database_column_round_trip():
     restored = metadata_from_columns(columns)
 
     assert columns["dri_score"] == 95
+    assert columns["dri_profile_name"] == "default"
     assert restored == meta
 
 def test_database_document_round_trip():
@@ -199,6 +235,21 @@ def test_scan_row_attaches_reliability_columns():
     assert scanned["temperature"] == 21.4
     assert scanned["dri_score"] >= 90
     assert scanned["dri_tier"] == 1
+
+def test_scan_rows_scans_iterables_with_source_id_field():
+    rows = [{"id": "a", "value": 1}, {"id": "b", "value": 2}]
+
+    scanned = scan_rows(rows, source_id_field="id", evidence=ValidationEvidence(cryptographic_verification=1.0))
+
+    assert [row["dri_source_id"] for row in scanned] == ["a", "b"]
+    assert all(row["dri_tier"] == 1 for row in scanned)
+
+def test_reliability_columns_ddl_supports_common_sql_dialects():
+    postgres = reliability_column_definitions(dialect="postgres")
+    sqlite = reliability_columns_ddl(dialect="sqlite")
+
+    assert postgres["dri_timestamp_verified"] == "BOOLEAN"
+    assert "dri_score INTEGER" in sqlite
 
 def test_trusted_records_filters_iterables():
     scanner = ReliabilityScanner()

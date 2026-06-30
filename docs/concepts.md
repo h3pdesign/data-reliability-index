@@ -22,6 +22,7 @@ The scan produces two outputs:
 
 - A numeric reliability score from 0 to 100.
 - A standardized trust tier from Tier 1 to Tier 3.
+- The scoring profile name and version used to produce the result.
 
 The score supports precise filtering and ranking. The tier gives downstream users a compact description of the record's verification level.
 
@@ -56,8 +57,18 @@ Each evidence field is a normalized value from `0.0` to `1.0`:
 
 Profiles apply different weights and minimum evidence thresholds to these fields. For example, climate records weight calibration and consistency more heavily than generic application events because station quality, radiation shielding, surroundings, and comparison-station agreement materially affect whether an extreme measurement should be trusted.
 
+## Authenticated integrity
+
+Trace hashes detect whether a payload changed after scanning. They do not prove who produced the payload.
+
+For ingestion systems that share a secret with an upstream producer, use HMAC-SHA256 signatures through `compute_hmac_signature()` and `expected_signature` on `ReliabilityScanner.scan()`. A valid signature can raise `cryptographic_verification` to `1.0`; an invalid or missing secret lowers it to `0.0` and records a note.
+
+For public third-party signatures, verify the provider's signature outside the SDK and then pass the result into `ValidationEvidence`.
+
 ## Database storage
 
 For SQL and analytical databases, store `dri_score`, `dri_tier`, `dri_source_id`, `dri_trace_hash`, and timestamp/calibration fields beside the source row. For document databases and object stores, store the reliability metadata as a nested JSON object.
 
 The SDK intentionally does not own database connections or migrations. Applications keep control of their database driver, transactions, indexes, and access permissions while using Data Reliability Index for scoring and policy decisions.
+
+Use `iter_scan_rows()` when processing large datasets so rows can be scored and written in chunks. Use `reliability_columns_ddl()` to generate the reliability columns for SQLite, PostgreSQL, MySQL, or DuckDB.

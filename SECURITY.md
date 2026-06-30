@@ -26,6 +26,7 @@ Use the SDK with these assumptions:
 - Treat all incoming records as untrusted until scanned and accepted by policy.
 - Store reliability metadata with the record so downstream systems can audit the decision.
 - Use `trace_hash` as an integrity signal for changed payloads, not as proof of source identity.
+- Use HMAC signature verification only with secrets stored outside source code, such as a secret manager or deployment environment.
 - Keep `source_id` values stable and non-secret; do not place tokens, passwords, or personal secrets in source identifiers or notes.
 - Apply database access controls to both raw records and reliability metadata.
 - Prefer signed upstream payloads or authenticated ingestion for high-trust Tier 1 workflows.

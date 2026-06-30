@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -86,6 +87,7 @@ class TierCriterion(BaseModel):
 class ReliabilityProfile(BaseModel):
     name: str
     description: str
+    version: str = "1"
     weights: ReliabilityWeights = Field(default_factory=ReliabilityWeights)
     tier_1: TierCriterion
     tier_2: TierCriterion
@@ -212,6 +214,21 @@ def compute_trace_hash(value: Any, source_id: str) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+SecretValue = Union[str, bytes]
+
+
+def compute_hmac_signature(value: Any, source_id: str, secret: SecretValue) -> str:
+    payload = {"source_id": source_id, "value": value}
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    secret_bytes = secret.encode("utf-8") if isinstance(secret, str) else secret
+    return hmac.new(secret_bytes, encoded, hashlib.sha256).hexdigest()
+
+
+def verify_hmac_signature(value: Any, source_id: str, secret: SecretValue, signature: str) -> bool:
+    expected = compute_hmac_signature(value, source_id, secret)
+    return hmac.compare_digest(expected, signature)
+
+
 class ReliabilityScanner:
     def __init__(
         self,
@@ -229,9 +246,19 @@ class ReliabilityScanner:
         evidence: Optional[ValidationEvidence] = None,
         *,
         expected_trace_hash: Optional[str] = None,
+        expected_signature: Optional[str] = None,
+        signing_secret: Optional[SecretValue] = None,
         required_fields: Optional[Sequence[str]] = None,
     ) -> ReliableData:
-        adjusted = self._adjust_evidence(value, source_id, evidence or ValidationEvidence(), expected_trace_hash, required_fields)
+        adjusted = self._adjust_evidence(
+            value,
+            source_id,
+            evidence or ValidationEvidence(),
+            expected_trace_hash,
+            expected_signature,
+            signing_secret,
+            required_fields,
+        )
         trace_hash = compute_trace_hash(value, source_id)
         score = self.score(adjusted)
         tier = self.assign_tier(score, adjusted)
@@ -241,6 +268,8 @@ class ReliabilityScanner:
             tier=tier,
             source_id=source_id,
             trace_hash=trace_hash,
+            profile_name=self.profile.name,
+            profile_version=self.profile.version,
             timestamp_verified=adjusted.timestamp_verified,
             calibration_version=adjusted.calibration_version,
             measurement_accuracy=adjusted.schema_compliance,
@@ -281,6 +310,8 @@ class ReliabilityScanner:
         source_id: str,
         evidence: ValidationEvidence,
         expected_trace_hash: Optional[str],
+        expected_signature: Optional[str],
+        signing_secret: Optional[SecretValue],
         required_fields: Optional[Sequence[str]],
     ) -> ValidationEvidence:
         update: dict[str, Any] = {}
@@ -300,6 +331,16 @@ class ReliabilityScanner:
             else:
                 update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
                 notes.append("Trace hash verification failed.")
+
+        if expected_signature is not None:
+            if signing_secret is None:
+                update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
+                notes.append("Signature verification failed: signing secret is missing.")
+            elif verify_hmac_signature(value, source_id, signing_secret, expected_signature):
+                update["cryptographic_verification"] = max(evidence.cryptographic_verification, 1.0)
+            else:
+                update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
+                notes.append("Signature verification failed.")
 
         if notes != evidence.notes:
             update["notes"] = notes

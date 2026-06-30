@@ -17,6 +17,8 @@ class ReliabilityMetadata(BaseModel):
     tier: DataTier
     source_id: str = Field(min_length=1, max_length=512)
     trace_hash: str = Field(min_length=1, max_length=128)
+    profile_name: str = Field(default="default", min_length=1, max_length=128)
+    profile_version: str = Field(default="1", min_length=1, max_length=64)
     timestamp_verified: bool = True
     calibration_version: Optional[str] = None
     measurement_accuracy: float = Field(default=1.0, ge=0.0, le=1.0)

@@ -11,6 +11,8 @@ The SDK scores validation evidence, assigns a standardized trust tier, and keeps
 - Policy-based filtering with structured accept/reject decisions.
 - Pydantic models for API, database, and message-queue serialization.
 - Driver-neutral database helpers for SQL tables and document stores.
+- Streaming row scanning and SQL DDL generation for database pipelines.
+- HMAC-SHA256 verification for authenticated ingestion systems.
 - Optional Pandas helpers for analysis pipelines.
 - FastAPI examples for ingestion validation.
 
@@ -20,13 +22,14 @@ The SDK scores validation evidence, assigns a standardized trust tier, and keeps
 2. Use `ReliabilityScanner` to compute a score from `0` to `100`.
 3. Assign a trust tier using explicit profile criteria.
 4. Enforce a `ReliabilityPolicy` before accepting records into trusted systems.
-5. Store the resulting metadata as `dri_*` columns or a nested reliability document.
+5. Store the resulting metadata, profile name, and profile version as `dri_*` columns or a nested reliability document.
 
 ## Installation
 
 ```bash
 pip install data-reliability-index
 pip install "data-reliability-index[pandas]"
+pip install "data-reliability-index[postgres]"
 ```
 
 Supported Python versions: `3.9` through `3.14`.

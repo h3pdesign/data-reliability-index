@@ -1,6 +1,11 @@
 # Data Reliability Index
 
 [![CI](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml/badge.svg)](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/data-reliability-index.svg)](https://pypi.org/project/data-reliability-index/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/data-reliability-index.svg)](https://pypi.org/project/data-reliability-index/)
+[![License](https://img.shields.io/pypi/l/data-reliability-index.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/h3pdesign/data-reliability-index.svg)](https://github.com/h3pdesign/data-reliability-index/releases)
+[![Typed](https://img.shields.io/badge/typed-py.typed-blue.svg)](src/data_reliability/py.typed)
 
 ![Data Reliability Index pipeline visualization](docs/assets/data-reliability-index.png)
 
@@ -12,9 +17,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.3.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.3.0)
+Latest release: [v0.4.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.4.0)
 
-The `v0.3.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.4.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
 
 ## Features
 
@@ -23,9 +28,11 @@ The `v0.3.0` GitHub Release includes signed source, a wheel, and a source distri
 - Tiered trust classification with scores from 0 to 100.
 - Automatic trust-tier assignment from score and verification signals.
 - Trace hash computation and verification support.
+- HMAC-SHA256 signature verification for authenticated payload integrity.
 - Policy-based acceptance checks for individual records.
 - Structured accept/reject decisions for audits and ingestion logs.
 - Driver-neutral database helpers for SQL, analytical, and document stores.
+- Batch and streaming row scanning for small files and large datasets.
 - Optional Pandas helpers for filtering DataFrames by reliability metadata.
 - FastAPI example for rejecting low-reliability input at ingestion time.
 - MkDocs documentation for concepts and API usage.
@@ -43,12 +50,18 @@ Optional integrations:
 ```bash
 pip install "data-reliability-index[pandas]"
 pip install "data-reliability-index[api]"
+pip install "data-reliability-index[postgres]"
+pip install "data-reliability-index[mysql]"
+pip install "data-reliability-index[duckdb]"
+pip install "data-reliability-index[mongo]"
+pip install "data-reliability-index[polars]"
+pip install "data-reliability-index[arrow]"
 ```
 
 You can also install the latest GitHub Release wheel directly:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.3.0/data_reliability_index-0.3.0-py3-none-any.whl
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.4.0/data_reliability_index-0.4.0-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -101,6 +114,7 @@ Each scan produces:
 - A numeric reliability score from `0` to `100`, representing overall confidence.
 - A standardized trust tier from `TIER_1` to `TIER_3`, describing source and verification level.
 - A trace hash that can be used to verify whether the data changed.
+- The scoring profile name and version used for reproducibility.
 - A `ReliableData` wrapper containing the original value and its reliability metadata.
 
 Together, the numeric score and trust tier provide more information than either metric alone. The score enables precise filtering and ranking, while the tier gives an immediately understandable description of the data's verification level.
@@ -177,6 +191,26 @@ print(scanner.tier_evaluation(evidence))
 
 For climate records, this makes methodological uncertainty visible. A temperature record with strong provenance and calibration can still fail Tier 1 if station metadata, anomaly checks, timestamp verification, or comparison-station consistency are insufficient.
 
+## Authenticated Payloads
+
+For trusted ingestion paths, the SDK can verify an upstream HMAC-SHA256 signature before raising cryptographic evidence:
+
+```python
+from data_reliability import ReliabilityScanner, compute_hmac_signature
+
+value = {"temperature": 21.4, "unit": "celsius"}
+signature = compute_hmac_signature(value, "sensor-a", "shared-secret")
+
+reliable = ReliabilityScanner().scan(
+    value,
+    source_id="sensor-a",
+    expected_signature=signature,
+    signing_secret="shared-secret",
+)
+```
+
+Use HMAC secrets only for authenticated systems you control. For public third-party signatures, use the provider's signature scheme before passing the result into DRI evidence.
+
 ## Database Usage
 
 The SDK does not require a database driver. It emits plain dictionaries so the same reliability metadata can be stored in small local databases such as SQLite and DuckDB, production SQL databases such as PostgreSQL and MySQL, analytical warehouses, or document stores.
@@ -196,11 +230,28 @@ assert scored_row["dri_score"] >= 90
 assert scored_row["dri_tier"] == 1
 ```
 
+For large datasets, stream rows instead of materializing everything:
+
+```python
+from data_reliability import iter_scan_rows
+
+for scored_row in iter_scan_rows(rows, source_id_field="id", required_fields=["temperature", "unit"]):
+    write_to_database(scored_row)
+```
+
+Generate reliability column definitions for common SQL engines:
+
+```python
+from data_reliability import reliability_columns_ddl
+
+print(reliability_columns_ddl(dialect="postgres"))
+```
+
 For SQL tables, store the generated `dri_*` columns beside the source data. For document databases, store `metadata_to_document(reliable.reliability)` as a nested reliability object.
 
 ## SDK and Security Notes
 
-This project is intended to be used as an SDK. The core package keeps dependencies small, exposes typed Pydantic models, avoids dynamic code execution, and uses deterministic SHA-256 trace hashes to detect changed payloads. Hashes are integrity signals, not proof of source identity by themselves; use authenticated ingestion, signed upstream payloads, database permissions, and private vulnerability reporting for production systems.
+This project is intended to be used as an SDK. The core package keeps dependencies small, exposes typed Pydantic models, avoids dynamic code execution, and uses deterministic SHA-256 trace hashes to detect changed payloads. Hashes are integrity signals, not proof of source identity by themselves; use authenticated ingestion, HMAC or provider signature verification, database permissions, and private vulnerability reporting for production systems.
 
 ## Pandas Filtering
 

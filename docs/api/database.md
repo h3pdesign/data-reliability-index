@@ -2,6 +2,16 @@
 
 The database helpers keep the SDK independent from database drivers. They return plain Python dictionaries that can be inserted with SQLite, PostgreSQL, MySQL, DuckDB, warehouse clients, document stores, or message queues.
 
+Install optional driver stacks only when the application needs them:
+
+```bash
+pip install "data-reliability-index[postgres]"
+pip install "data-reliability-index[mysql]"
+pip install "data-reliability-index[duckdb]"
+pip install "data-reliability-index[mongo]"
+pip install "data-reliability-index[arrow]"
+```
+
 Recommended SQL columns:
 
 | Column | Meaning |
@@ -10,8 +20,14 @@ Recommended SQL columns:
 | `dri_tier` | Trust tier as `1`, `2`, or `3`. |
 | `dri_source_id` | Source identifier used for trace hashing. |
 | `dri_trace_hash` | SHA-256 hash of source id and payload. |
+| `dri_profile_name` | Scoring profile used for the reliability decision. |
+| `dri_profile_version` | Profile version used for reproducibility. |
 | `dri_timestamp_verified` | Whether timestamp integrity was verified. |
 | `dri_calibration_version` | Optional calibration reference. |
+
+Use `reliability_columns_ddl()` to generate a SQL fragment for SQLite, PostgreSQL, MySQL, or DuckDB.
+
+Use `iter_scan_rows()` for large datasets and `scan_rows()` for small in-memory batches.
 
 For document databases, store the full result of `metadata_to_document()` under a nested `reliability` key.
 
