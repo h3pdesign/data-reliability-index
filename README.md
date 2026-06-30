@@ -12,7 +12,7 @@ The package is built around a simple rule: data should carry the evidence needed
 
 Latest release: [v0.2.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.2.0)
 
-The `v0.2.0` GitHub Release includes signed source, a wheel, and a source distribution. PyPI publishing is configured through GitHub Actions, but the first PyPI upload is still pending PyPI trusted-publisher setup.
+The `v0.2.0` GitHub Release includes signed source, a wheel, and a source distribution. PyPI publishing is configured through GitHub Actions.
 
 ## Features
 
