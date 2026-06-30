@@ -6,6 +6,7 @@ repo_url: https://github.com/h3pdesign/data-reliability-index
 nav:
   - Home: index.md
   - Concepts: concepts.md
+  - Release: release.md
   - API:
       - Overview: api/index.md
       - Core Models: api/core.md
@@ -19,3 +20,10 @@ markdown_extensions:
   - tables
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true

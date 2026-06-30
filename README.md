@@ -98,6 +98,14 @@ pip install -e ".[test]"
 pytest
 ```
 
+Build package artifacts:
+
+```bash
+pip install -e ".[build]"
+python -m build
+python -m twine check dist/*
+```
+
 Run the FastAPI example:
 
 ```bash
