@@ -21,6 +21,14 @@ The expected artifacts are:
 
 Publishing is handled by `.github/workflows/publish.yml` using PyPI trusted publishing.
 
+Before the first publish, configure a PyPI trusted publisher for this project:
+
+- PyPI project name: `data-reliability-index`
+- Owner: `h3pdesign`
+- Repository name: `data-reliability-index`
+- Workflow name: `publish.yml`
+- Environment name: `pypi`
+
 To publish a version:
 
 1. Update `version` in `pyproject.toml`.
@@ -29,6 +37,8 @@ To publish a version:
 4. Create a GitHub Release from that tag.
 
 The release workflow builds the package, checks it with Twine, and publishes to PyPI.
+
+If PyPI returns `invalid-publisher`, the trusted publisher configuration does not match the GitHub OIDC claims. Recheck the project, owner, repository, workflow, and environment values above, then rerun the failed `Publish` workflow.
 
 ## Signed Commits
 
