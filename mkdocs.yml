@@ -1,0 +1,21 @@
+site_name: Data Reliability Index
+site_description: Documentation for the Data Reliability Python package
+site_url: https://h3pdesign.github.io/data-reliability-index/
+repo_name: h3pdesign/data-reliability-index
+repo_url: https://github.com/h3pdesign/data-reliability-index
+nav:
+  - Home: index.md
+  - Concepts: concepts.md
+  - API:
+      - Overview: api/index.md
+      - Core Models: api/core.md
+      - Pandas Extension: api/pandas.md
+      - FastAPI Example: api/fastapi.md
+theme:
+  name: material
+markdown_extensions:
+  - admonition
+  - codehilite
+  - tables
+plugins:
+  - search
