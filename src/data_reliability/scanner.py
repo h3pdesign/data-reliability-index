@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,7 +21,7 @@ class ValidationEvidence(BaseModel):
     duplicate_detection: float = Field(default=1.0, ge=0.0, le=1.0)
     metadata_quality: float = Field(default=1.0, ge=0.0, le=1.0)
     timestamp_verified: bool = True
-    calibration_version: str | None = None
+    calibration_version: Optional[str] = None
     notes: list[str] = Field(default_factory=list)
 
 
@@ -51,17 +51,17 @@ def compute_trace_hash(value: Any, source_id: str) -> str:
 
 
 class ReliabilityScanner:
-    def __init__(self, weights: ReliabilityWeights | None = None) -> None:
+    def __init__(self, weights: Optional[ReliabilityWeights] = None) -> None:
         self.weights = weights or ReliabilityWeights()
 
     def scan(
         self,
         value: Any,
         source_id: str,
-        evidence: ValidationEvidence | None = None,
+        evidence: Optional[ValidationEvidence] = None,
         *,
-        expected_trace_hash: str | None = None,
-        required_fields: Sequence[str] | None = None,
+        expected_trace_hash: Optional[str] = None,
+        required_fields: Optional[Sequence[str]] = None,
     ) -> ReliableData:
         adjusted = self._adjust_evidence(value, source_id, evidence or ValidationEvidence(), expected_trace_hash, required_fields)
         trace_hash = compute_trace_hash(value, source_id)
@@ -112,8 +112,8 @@ class ReliabilityScanner:
         value: Any,
         source_id: str,
         evidence: ValidationEvidence,
-        expected_trace_hash: str | None,
-        required_fields: Sequence[str] | None,
+        expected_trace_hash: Optional[str],
+        required_fields: Optional[Sequence[str]],
     ) -> ValidationEvidence:
         update: dict[str, Any] = {}
         notes = list(evidence.notes)

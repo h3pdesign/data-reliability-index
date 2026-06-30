@@ -39,7 +39,7 @@ class ReliabilityPolicy(BaseModel):
             return False
         return meta.score >= self.minimum_score and meta.tier <= self.maximum_tier
 
-    def resolve(self, data: ReliableData) -> Any | None:
+    def resolve(self, data: ReliableData) -> Optional[Any]:
         if not self.allows(data.reliability):
             return None
         return data.value
