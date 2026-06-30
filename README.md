@@ -4,15 +4,17 @@
 
 ![Data Reliability Index pipeline visualization](docs/assets/data-reliability-index.png)
 
-Data Reliability Index is a Python package for attaching reliability metadata to data points, enforcing trust policies, and filtering unreliable records before they reach analysis or API boundaries.
+Data Reliability Index is a typed Python SDK for attaching reliability metadata to data points, enforcing trust policies, and filtering unreliable records before they reach analysis, databases, or API boundaries.
 
 The package is built around a simple rule: data should carry the evidence needed to decide whether it is safe to use.
 
+Supported Python versions: `3.9` through `3.14`.
+
 ## Release Status
 
-Latest release: [v0.2.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.2.0)
+Latest release: [v0.3.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.3.0)
 
-The `v0.2.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.3.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
 
 ## Features
 
@@ -22,7 +24,9 @@ The `v0.2.0` GitHub Release includes signed source, a wheel, and a source distri
 - Automatic trust-tier assignment from score and verification signals.
 - Trace hash computation and verification support.
 - Policy-based acceptance checks for individual records.
-- Pandas helpers for filtering DataFrames by reliability metadata.
+- Structured accept/reject decisions for audits and ingestion logs.
+- Driver-neutral database helpers for SQL, analytical, and document stores.
+- Optional Pandas helpers for filtering DataFrames by reliability metadata.
 - FastAPI example for rejecting low-reliability input at ingestion time.
 - MkDocs documentation for concepts and API usage.
 
@@ -34,10 +38,17 @@ Install from PyPI:
 pip install data-reliability-index
 ```
 
+Optional integrations:
+
+```bash
+pip install "data-reliability-index[pandas]"
+pip install "data-reliability-index[api]"
+```
+
 You can also install the latest GitHub Release wheel directly:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.2.0/data_reliability_index-0.2.0-py3-none-any.whl
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.3.0/data_reliability_index-0.3.0-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -74,6 +85,7 @@ policy = ReliabilityPolicy(
 )
 
 assert policy.resolve(data) == {"temperature": 21.4, "unit": "celsius"}
+assert policy.assess(data.reliability).accepted is True
 ```
 
 ## How the Data Reliability Index Works
@@ -165,6 +177,31 @@ print(scanner.tier_evaluation(evidence))
 
 For climate records, this makes methodological uncertainty visible. A temperature record with strong provenance and calibration can still fail Tier 1 if station metadata, anomaly checks, timestamp verification, or comparison-station consistency are insufficient.
 
+## Database Usage
+
+The SDK does not require a database driver. It emits plain dictionaries so the same reliability metadata can be stored in small local databases such as SQLite and DuckDB, production SQL databases such as PostgreSQL and MySQL, analytical warehouses, or document stores.
+
+```python
+from data_reliability import ValidationEvidence, scan_row
+
+row = {"temperature": 21.4, "unit": "celsius"}
+scored_row = scan_row(
+    row,
+    source_id="sensor-a",
+    evidence=ValidationEvidence(cryptographic_verification=1.0, calibration=1.0),
+    required_fields=["temperature", "unit"],
+)
+
+assert scored_row["dri_score"] >= 90
+assert scored_row["dri_tier"] == 1
+```
+
+For SQL tables, store the generated `dri_*` columns beside the source data. For document databases, store `metadata_to_document(reliable.reliability)` as a nested reliability object.
+
+## SDK and Security Notes
+
+This project is intended to be used as an SDK. The core package keeps dependencies small, exposes typed Pydantic models, avoids dynamic code execution, and uses deterministic SHA-256 trace hashes to detect changed payloads. Hashes are integrity signals, not proof of source identity by themselves; use authenticated ingestion, signed upstream payloads, database permissions, and private vulnerability reporting for production systems.
+
 ## Pandas Filtering
 
 ```python
@@ -192,7 +229,7 @@ trusted = filter_reliable_df(df, policy)
 The project documentation lives in [`docs/`](docs/) and can be served locally with MkDocs:
 
 ```bash
-pip install mkdocs-material
+pip install -e ".[docs]"
 mkdocs serve
 ```
 
@@ -201,6 +238,7 @@ Start with:
 - [Concepts](docs/concepts.md)
 - [Core models](docs/api/core.md)
 - [Scanning engine](docs/api/scanner.md)
+- [Database helpers](docs/api/database.md)
 - [Pandas extension](docs/api/pandas.md)
 - [FastAPI example](docs/api/fastapi.md)
 - [Release and publishing](docs/release.md)
@@ -227,6 +265,7 @@ python -m twine check dist/*
 Run the FastAPI example:
 
 ```bash
+pip install -e ".[api]"
 uvicorn examples.fastapi_app:app --reload
 ```
 

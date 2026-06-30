@@ -12,6 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Default, scientific, and climate-record reliability profiles.
 - Tier evaluation diagnostics showing which score or evidence thresholds failed.
 - Climate-record scoring criteria for calibrated instruments, provenance, metadata quality, consistency, and anomaly checks.
+- Structured `ReliabilityDecision` results for policy audits.
+- Driver-neutral database helpers for SQL columns and document-store metadata.
+
+### Changed
+
+- Treat `pandas`, `fastapi`, and `uvicorn` as optional extras so the base package remains a small SDK install.
 
 ## [0.2.0] - 2026-06-30
 

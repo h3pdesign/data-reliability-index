@@ -8,6 +8,14 @@ from data_reliability.scanner import (
     compute_trace_hash,
     scientific_profile,
 )
+from data_reliability.database import (
+    metadata_from_columns,
+    metadata_from_document,
+    metadata_to_columns,
+    metadata_to_document,
+    scan_row,
+    trusted_records,
+)
 
 def test_policy_allows():
     meta = ReliabilityMetadata(score=95, tier=DataTier.TIER_1, source_id="s1", trace_hash="abc")
@@ -18,6 +26,18 @@ def test_policy_rejects_low_score():
     meta = ReliabilityMetadata(score=85, tier=DataTier.TIER_1, source_id="s1", trace_hash="abc")
     policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_2)
     assert policy.allows(meta) is False
+
+def test_policy_assessment_explains_rejection():
+    meta = ReliabilityMetadata(score=85, tier=DataTier.TIER_3, source_id="s1", trace_hash="abc", timestamp_verified=False)
+    policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_2)
+
+    decision = policy.assess(meta)
+
+    assert decision.accepted is False
+    assert decision.score_passed is False
+    assert decision.tier_passed is False
+    assert decision.timestamp_passed is False
+    assert len(decision.reasons) == 3
 
 def test_scanner_assigns_tier_one_for_verified_high_quality_data():
     scanner = ReliabilityScanner()
@@ -76,6 +96,13 @@ def test_policy_resolves_reliable_data():
     policy = ReliabilityPolicy(minimum_score=70, maximum_tier=DataTier.TIER_2)
 
     assert policy.resolve(reliable) == {"value": 10}
+
+def test_policy_filters_reliable_data_batches():
+    accepted = ReliabilityScanner().scan({"value": 10}, "api-a", ValidationEvidence(cryptographic_verification=1.0))
+    rejected = ReliabilityScanner().scan({"value": 20}, "api-b", ValidationEvidence(completeness=0.1, provenance=0.0))
+    policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_1)
+
+    assert policy.filter([accepted, rejected]) == [accepted]
 
 def test_scientific_profile_requires_stronger_evidence_for_tier_one():
     scanner = ReliabilityScanner(profile=scientific_profile())
@@ -140,3 +167,43 @@ def test_climate_record_profile_rejects_uncalibrated_extreme_records():
 def test_tier_criterion_rejects_unknown_evidence_fields():
     with pytest.raises(ValueError, match="Unknown evidence fields"):
         TierCriterion(minimum_score=90, minimum_evidence={"unknown": 0.9})
+
+def test_database_column_round_trip():
+    meta = ReliabilityMetadata(score=95, tier=DataTier.TIER_1, source_id="sensor-a", trace_hash="abc")
+
+    columns = metadata_to_columns(meta)
+    restored = metadata_from_columns(columns)
+
+    assert columns["dri_score"] == 95
+    assert restored == meta
+
+def test_database_document_round_trip():
+    meta = ReliabilityMetadata(score=80, tier=DataTier.TIER_2, source_id="api-a", trace_hash="def")
+
+    document = metadata_to_document(meta)
+    restored = metadata_from_document(document)
+
+    assert document["tier"] == 2
+    assert restored == meta
+
+def test_scan_row_attaches_reliability_columns():
+    row = {"temperature": 21.4, "unit": "celsius"}
+
+    scanned = scan_row(
+        row,
+        source_id="sensor-a",
+        evidence=ValidationEvidence(cryptographic_verification=1.0),
+        required_fields=["temperature", "unit"],
+    )
+
+    assert scanned["temperature"] == 21.4
+    assert scanned["dri_score"] >= 90
+    assert scanned["dri_tier"] == 1
+
+def test_trusted_records_filters_iterables():
+    scanner = ReliabilityScanner()
+    accepted = scanner.scan({"value": 10}, "api-a", ValidationEvidence(cryptographic_verification=1.0))
+    rejected = scanner.scan({"value": 20}, "api-b", ValidationEvidence(completeness=0.0, provenance=0.0))
+    policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_1)
+
+    assert trusted_records([accepted, rejected], policy) == [accepted]
