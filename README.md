@@ -7,7 +7,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/h3pdesign/data-reliability-index.svg)](https://github.com/h3pdesign/data-reliability-index/releases)
 [![Typed](https://img.shields.io/badge/typed-py.typed-blue.svg)](src/data_reliability/py.typed)
 
-![Data Reliability Index pipeline visualization](docs/assets/data-reliability-index.png)
+![Data Reliability Index core features infographic](https://raw.githubusercontent.com/h3pdesign/data-reliability-index/main/docs/assets/data-reliability-index-core-features.png)
 
 Data Reliability Index is a typed Python SDK for attaching reliability metadata to data points, enforcing trust policies, and filtering unreliable records before they reach analysis, databases, or API boundaries.
 
@@ -17,9 +17,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.4.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.4.0)
+Latest release: [v0.5.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.5.0)
 
-The `v0.4.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.5.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
 
 ## Features
 
@@ -31,6 +31,7 @@ The `v0.4.0` GitHub Release includes signed source, a wheel, and a source distri
 - HMAC-SHA256 signature verification for authenticated payload integrity.
 - Policy-based acceptance checks for individual records.
 - Structured accept/reject decisions for audits and ingestion logs.
+- Evidence templates for common source types.
 - Driver-neutral database helpers for SQL, analytical, and document stores.
 - Batch and streaming row scanning for small files and large datasets.
 - Optional Pandas helpers for filtering DataFrames by reliability metadata.
@@ -61,7 +62,7 @@ pip install "data-reliability-index[arrow]"
 You can also install the latest GitHub Release wheel directly:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.4.0/data_reliability_index-0.4.0-py3-none-any.whl
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.5.0/data_reliability_index-0.5.0-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -73,23 +74,18 @@ pip install -e ".[test]"
 ## Quick Start
 
 ```python
-from data_reliability import DataTier, ReliabilityPolicy, ReliabilityScanner, ValidationEvidence
+from data_reliability import DataTier, ReliabilityPolicy, ReliabilityScanner, evidence_from_template
 
 scanner = ReliabilityScanner()
+evidence = evidence_from_template(
+    "verified-sensor",
+    calibration_version="sensor-cal-2026-06",
+)
+
 data = scanner.scan(
     {"temperature": 21.4, "unit": "celsius"},
     source_id="sensor-a",
-    evidence=ValidationEvidence(
-        completeness=1.0,
-        consistency=1.0,
-        provenance=1.0,
-        cryptographic_verification=1.0,
-        calibration=1.0,
-        schema_compliance=1.0,
-        anomaly_detection=1.0,
-        duplicate_detection=1.0,
-        metadata_quality=1.0,
-    ),
+    evidence=evidence,
 )
 
 policy = ReliabilityPolicy(
@@ -118,6 +114,29 @@ Each scan produces:
 - A `ReliableData` wrapper containing the original value and its reliability metadata.
 
 Together, the numeric score and trust tier provide more information than either metric alone. The score enables precise filtering and ranking, while the tier gives an immediately understandable description of the data's verification level.
+
+## Evidence Templates
+
+Templates provide conservative starting points so users do not need to manually set every evidence value for common source types:
+
+- `verified-sensor`
+- `trusted-api`
+- `cleaned-dataset`
+- `user-submission`
+- `historical-record`
+- `climate-station`
+
+Use templates as defaults and override only values you can justify:
+
+```python
+from data_reliability import evidence_from_template
+
+evidence = evidence_from_template(
+    "trusted-api",
+    cryptographic_verification=1.0,
+    notes=["Provider payload signature verified at ingestion."],
+)
+```
 
 ## Trust Tiers
 
@@ -289,6 +308,7 @@ Start with:
 - [Concepts](docs/concepts.md)
 - [Core models](docs/api/core.md)
 - [Scanning engine](docs/api/scanner.md)
+- [Evidence templates](docs/api/templates.md)
 - [Database helpers](docs/api/database.md)
 - [Pandas extension](docs/api/pandas.md)
 - [FastAPI example](docs/api/fastapi.md)

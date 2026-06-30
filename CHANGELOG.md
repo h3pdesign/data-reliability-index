@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.5.0] - 2026-06-30
+
+### Added
+
+- Evidence templates for verified sensors, trusted APIs, cleaned datasets, user submissions, historical records, and climate station observations.
+- Template registry helpers for creating `ValidationEvidence` without hand-tuning every score.
+
 ## [0.4.0] - 2026-06-30
 
 ### Added

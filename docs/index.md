@@ -7,6 +7,7 @@ The SDK scores validation evidence, assigns a standardized trust tier, and keeps
 ## What it provides
 
 - Profile-based scoring for general, scientific, and climate-record data.
+- Evidence templates for common source types.
 - Tiered reliability classification from Tier 1 to Tier 3.
 - Policy-based filtering with structured accept/reject decisions.
 - Pydantic models for API, database, and message-queue serialization.
@@ -18,7 +19,7 @@ The SDK scores validation evidence, assigns a standardized trust tier, and keeps
 
 ## Core workflow
 
-1. Collect evidence about completeness, provenance, calibration, schema compliance, anomaly checks, and metadata quality.
+1. Collect evidence about completeness, provenance, calibration, schema compliance, anomaly checks, and metadata quality, or start from an evidence template.
 2. Use `ReliabilityScanner` to compute a score from `0` to `100`.
 3. Assign a trust tier using explicit profile criteria.
 4. Enforce a `ReliabilityPolicy` before accepting records into trusted systems.

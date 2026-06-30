@@ -26,6 +26,17 @@ from .scanner import (
     scientific_profile,
     verify_hmac_signature,
 )
+from .templates import (
+    EvidenceTemplate,
+    cleaned_dataset_template,
+    climate_station_template,
+    evidence_from_template,
+    evidence_templates,
+    historical_record_template,
+    trusted_api_template,
+    user_submission_template,
+    verified_sensor_template,
+)
 
 __all__ = [
     "DataTier",
@@ -39,11 +50,17 @@ __all__ = [
     "TierCriterion",
     "ValidationEvidence",
     "RELIABILITY_COLUMNS",
+    "EvidenceTemplate",
     "climate_record_profile",
+    "climate_station_template",
     "compute_hmac_signature",
     "compute_trace_hash",
+    "cleaned_dataset_template",
     "default_profile",
+    "evidence_from_template",
+    "evidence_templates",
     "filter_reliable_df",
+    "historical_record_template",
     "iter_scan_rows",
     "metadata_from_columns",
     "metadata_from_document",
@@ -54,6 +71,9 @@ __all__ = [
     "scan_row",
     "scan_rows",
     "scientific_profile",
+    "trusted_api_template",
     "trusted_records",
+    "user_submission_template",
     "verify_hmac_signature",
+    "verified_sensor_template",
 ]

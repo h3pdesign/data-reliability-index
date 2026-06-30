@@ -57,6 +57,19 @@ Each evidence field is a normalized value from `0.0` to `1.0`:
 
 Profiles apply different weights and minimum evidence thresholds to these fields. For example, climate records weight calibration and consistency more heavily than generic application events because station quality, radiation shielding, surroundings, and comparison-station agreement materially affect whether an extreme measurement should be trusted.
 
+## Evidence templates
+
+Templates are conservative starting points for common source types:
+
+- `verified-sensor`
+- `trusted-api`
+- `cleaned-dataset`
+- `user-submission`
+- `historical-record`
+- `climate-station`
+
+Use templates to avoid arbitrary all-`1.0` evidence blocks. Override values only when the application can justify the evidence from validation checks, source contracts, signatures, calibration records, or audit metadata.
+
 ## Authenticated integrity
 
 Trace hashes detect whether a payload changed after scanning. They do not prove who produced the payload.
