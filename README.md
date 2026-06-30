@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml/badge.svg)](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml)
 
+![Data Reliability Index pipeline visualization](docs/assets/data-reliability-index.png)
+
 Data Reliability Index is a Python package for attaching reliability metadata to data points, enforcing trust policies, and filtering unreliable records before they reach analysis or API boundaries.
 
 The package is built around a simple rule: data should carry the evidence needed to decide whether it is safe to use.
