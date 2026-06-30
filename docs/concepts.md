@@ -13,3 +13,14 @@ Every data point should carry explicit reliability metadata. That metadata can t
 ## Policy
 
 A reliability policy defines the minimum score and maximum allowed tier. Data that fails the policy should be excluded automatically.
+
+## Scanning lifecycle
+
+Raw records start as untrusted input. The scanning engine evaluates validation evidence for completeness, consistency, provenance, cryptographic verification, calibration, schema compliance, anomaly checks, duplicate checks, and metadata quality.
+
+The scan produces two outputs:
+
+- A numeric reliability score from 0 to 100.
+- A standardized trust tier from Tier 1 to Tier 3.
+
+The score supports precise filtering and ranking. The tier gives downstream users a compact description of the record's verification level.

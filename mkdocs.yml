@@ -10,6 +10,7 @@ nav:
   - API:
       - Overview: api/index.md
       - Core Models: api/core.md
+      - Scanning Engine: api/scanner.md
       - Pandas Extension: api/pandas.md
       - FastAPI Example: api/fastapi.md
 theme:

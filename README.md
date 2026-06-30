@@ -11,6 +11,7 @@ The package is built around a simple rule: data should carry the evidence needed
 ## Features
 
 - Pydantic models for reliability metadata and policies.
+- Scanning engine for computing reliability scores from validation evidence.
 - Tiered trust classification with scores from 0 to 100.
 - Policy-based acceptance checks for individual records.
 - Pandas helpers for filtering DataFrames by reliability metadata.
@@ -32,13 +33,23 @@ pip install -e ".[test]"
 ## Quick Start
 
 ```python
-from data_reliability import DataTier, ReliabilityMetadata, ReliabilityPolicy
+from data_reliability import DataTier, ReliabilityPolicy, ReliabilityScanner, ValidationEvidence
 
-metadata = ReliabilityMetadata(
-    score=95,
-    tier=DataTier.TIER_1,
+scanner = ReliabilityScanner()
+data = scanner.scan(
+    {"temperature": 21.4, "unit": "celsius"},
     source_id="sensor-a",
-    trace_hash="abc123",
+    evidence=ValidationEvidence(
+        completeness=1.0,
+        consistency=1.0,
+        provenance=1.0,
+        cryptographic_verification=1.0,
+        calibration=1.0,
+        schema_compliance=1.0,
+        anomaly_detection=1.0,
+        duplicate_detection=1.0,
+        metadata_quality=1.0,
+    ),
 )
 
 policy = ReliabilityPolicy(
@@ -46,7 +57,7 @@ policy = ReliabilityPolicy(
     maximum_tier=DataTier.TIER_2,
 )
 
-assert policy.allows(metadata) is True
+assert policy.resolve(data) == {"temperature": 21.4, "unit": "celsius"}
 ```
 
 ## Pandas Filtering
