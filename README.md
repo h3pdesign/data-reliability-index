@@ -8,11 +8,19 @@ Data Reliability Index is a Python package for attaching reliability metadata to
 
 The package is built around a simple rule: data should carry the evidence needed to decide whether it is safe to use.
 
+## Release Status
+
+Latest release: [v0.2.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.2.0)
+
+The `v0.2.0` GitHub Release includes signed source, a wheel, and a source distribution. PyPI publishing is configured through GitHub Actions, but the first PyPI upload is still pending PyPI trusted-publisher setup.
+
 ## Features
 
 - Pydantic models for reliability metadata and policies.
 - Scanning engine for computing reliability scores from validation evidence.
 - Tiered trust classification with scores from 0 to 100.
+- Automatic trust-tier assignment from score and verification signals.
+- Trace hash computation and verification support.
 - Policy-based acceptance checks for individual records.
 - Pandas helpers for filtering DataFrames by reliability metadata.
 - FastAPI example for rejecting low-reliability input at ingestion time.
@@ -20,8 +28,16 @@ The package is built around a simple rule: data should carry the evidence needed
 
 ## Installation
 
+From PyPI, once publishing is enabled:
+
 ```bash
 pip install data-reliability-index
+```
+
+Until then, install the latest GitHub Release wheel directly:
+
+```bash
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.2.0/data_reliability_index-0.2.0-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -60,6 +76,17 @@ policy = ReliabilityPolicy(
 assert policy.resolve(data) == {"temperature": 21.4, "unit": "celsius"}
 ```
 
+## Pipeline Model
+
+Raw data starts as untrusted input. The scanner evaluates validation evidence for completeness, consistency, provenance, cryptographic verification, calibration, schema compliance, anomaly detection, duplicate detection, and metadata quality.
+
+Each scan produces:
+
+- A numeric reliability score from `0` to `100`.
+- A standardized trust tier from `TIER_1` to `TIER_3`.
+- A trace hash that can be used to verify whether the data changed.
+- A `ReliableData` wrapper containing the original value and its reliability metadata.
+
 ## Pandas Filtering
 
 ```python
@@ -95,8 +122,10 @@ Start with:
 
 - [Concepts](docs/concepts.md)
 - [Core models](docs/api/core.md)
+- [Scanning engine](docs/api/scanner.md)
 - [Pandas extension](docs/api/pandas.md)
 - [FastAPI example](docs/api/fastapi.md)
+- [Release and publishing](docs/release.md)
 
 The longer project rationale is available in [`data-reliability.md`](data-reliability.md).
 
