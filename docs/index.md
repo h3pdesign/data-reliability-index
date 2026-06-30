@@ -1,8 +1,10 @@
 # Data Reliability Index
 
-Data Reliability Index is a typed Python SDK for making data trustworthiness explicit before records enter analytics, machine learning, APIs, or databases.
+Data Reliability Index is a typed Python SDK for making data trustworthiness explicit before records enter analytics, machine learning, APIs, databases, or scientific conclusions.
 
-The SDK scores validation evidence, assigns a standardized trust tier, and keeps the original payload linked to reliability metadata. This lets applications reject, quarantine, down-weight, or audit data based on objective criteria instead of implicit assumptions.
+Many workflows treat measured or collected values as facts even when source quality, calibration, provenance, uncertainty, verification history, or integrity is unknown. The SDK scores validation evidence, assigns a standardized trust tier, and keeps the original payload linked to reliability metadata. This lets applications reject, quarantine, down-weight, or audit data based on objective criteria instead of implicit assumptions.
+
+The goal is to make reliability classification a normal part of data handling. If data points are not classified and verified, downstream analysis can become difficult to reproduce and scientifically weak because the trust level of the underlying evidence was never made explicit.
 
 ## What it provides
 

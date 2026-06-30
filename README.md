@@ -9,9 +9,11 @@
 
 ![Data Reliability Index core features infographic](https://raw.githubusercontent.com/h3pdesign/data-reliability-index/main/docs/assets/data-reliability-index-core-features.png)
 
-Data Reliability Index is a typed Python SDK for attaching reliability metadata to data points, enforcing trust policies, and filtering unreliable records before they reach analysis, databases, or API boundaries.
+Data Reliability Index is a typed Python SDK for classifying the reliability of measured, collected, derived, or user-submitted data before it is used for analysis, databases, APIs, machine learning, or scientific conclusions.
 
-The package is built around a simple rule: data should carry the evidence needed to decide whether it is safe to use.
+The project starts from a practical problem: many datasets contain values that are treated as facts even though their source, calibration, provenance, verification history, uncertainty, or integrity is unknown. In real workflows, measured data is often copied into databases, dashboards, research notebooks, and models without every data point being classified by reliability. That makes later analysis fragile, because high-quality measurements, partially verified records, historical observations, and weakly sourced submissions can all be mixed together as if they had the same evidential value.
+
+Data Reliability Index is built around a simple rule: every data point should carry the evidence needed to decide whether it is safe to use. Each record should be scored, assigned a trust tier, linked to provenance and audit metadata, and filtered by explicit policy before it influences decisions. Without this kind of reliability classification, analysis can become difficult to reproduce, hard to defend, and scientifically weak because the trust level of the underlying data was never verified.
 
 Supported Python versions: `3.9` through `3.14`.
 
