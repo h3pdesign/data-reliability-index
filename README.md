@@ -114,7 +114,23 @@ Every accepted record retains its reliability score, trust tier, provenance meta
 
 ## Transparent Scoring
 
-The scoring model is stable. Different use cases change their acceptance thresholds, not the meaning of reliability itself.
+The scanner creates a numeric score by applying profile weights to the evidence dimensions. Each evidence value is normalized from `0.0` to `1.0`, multiplied by the active profile's weight, and converted to a `0` to `100` score. Missing timestamps apply an additional penalty when timestamp verification is required.
+
+Trust tiers are then assigned by explicit profile criteria:
+
+- `TIER_1`: the record must pass the Tier 1 minimum score and all required evidence thresholds.
+- `TIER_2`: the record must pass the Tier 2 minimum score and all required evidence thresholds.
+- `TIER_3`: fallback for records that do not satisfy Tier 1 or Tier 2.
+
+The package includes three profiles:
+
+| Profile | Purpose | Tier behavior |
+| --- | --- | --- |
+| `default_profile()` | General application, API, and analytics data | Tier 1 requires high score, provenance, cryptographic verification, schema compliance, and verified timestamp |
+| `scientific_profile()` | Research data across scientific fields | Increases weight and thresholds for provenance, calibration, consistency, anomaly checks, and reproducibility signals |
+| `climate_record_profile()` | Weather and climate record data | Emphasizes calibrated instruments, station metadata, consistency with comparison stations, anomaly checks, and provenance |
+
+The scoring model is stable within a profile. Different use cases change their acceptance thresholds or active profile, not the meaning of reliability itself.
 
 Examples:
 
@@ -127,6 +143,27 @@ Examples:
 Because every dataset is evaluated using the same transparent methodology, organizations can define their own acceptance criteria without changing how reliability is measured.
 
 Instead of asking whether a dataset can be trusted, users can inspect objective metrics: reliability score, standardized trust tier, provenance, and validation history.
+
+You can inspect why a record received its tier:
+
+```python
+from data_reliability import ReliabilityScanner, ValidationEvidence, climate_record_profile
+
+scanner = ReliabilityScanner(profile=climate_record_profile())
+evidence = ValidationEvidence(
+    completeness=0.98,
+    consistency=0.96,
+    provenance=0.96,
+    calibration=0.96,
+    schema_compliance=0.92,
+    anomaly_detection=0.96,
+    metadata_quality=0.60,
+)
+
+print(scanner.tier_evaluation(evidence))
+```
+
+For climate records, this makes methodological uncertainty visible. A temperature record with strong provenance and calibration can still fail Tier 1 if station metadata, anomaly checks, timestamp verification, or comparison-station consistency are insufficient.
 
 ## Pandas Filtering
 

@@ -5,9 +5,21 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .core import DataTier, ReliableData, ReliabilityMetadata
+
+EVIDENCE_FIELDS = (
+    "completeness",
+    "consistency",
+    "provenance",
+    "cryptographic_verification",
+    "calibration",
+    "schema_compliance",
+    "anomaly_detection",
+    "duplicate_detection",
+    "metadata_quality",
+)
 
 
 class ValidationEvidence(BaseModel):
@@ -44,6 +56,156 @@ class ReliabilityWeights(BaseModel):
         return {key: value / total for key, value in values.items()}
 
 
+class TierCriterion(BaseModel):
+    minimum_score: int = Field(ge=0, le=100)
+    minimum_evidence: dict[str, float] = Field(default_factory=dict)
+    require_timestamp_verified: bool = True
+    description: str = ""
+
+    @field_validator("minimum_evidence")
+    @classmethod
+    def validate_minimum_evidence(cls, value: dict[str, float]) -> dict[str, float]:
+        unknown_fields = sorted(set(value) - set(EVIDENCE_FIELDS))
+        if unknown_fields:
+            raise ValueError(f"Unknown evidence fields: {', '.join(unknown_fields)}")
+        invalid = {field: threshold for field, threshold in value.items() if threshold < 0.0 or threshold > 1.0}
+        if invalid:
+            details = ", ".join(f"{field}={threshold}" for field, threshold in invalid.items())
+            raise ValueError(f"Evidence thresholds must be between 0.0 and 1.0: {details}")
+        return value
+
+    def allows(self, score: int, evidence: ValidationEvidence) -> bool:
+        if score < self.minimum_score:
+            return False
+        if self.require_timestamp_verified and not evidence.timestamp_verified:
+            return False
+        values = evidence.model_dump()
+        return all(float(values[field]) >= threshold for field, threshold in self.minimum_evidence.items())
+
+
+class ReliabilityProfile(BaseModel):
+    name: str
+    description: str
+    weights: ReliabilityWeights = Field(default_factory=ReliabilityWeights)
+    tier_1: TierCriterion
+    tier_2: TierCriterion
+
+    def assign_tier(self, score: int, evidence: ValidationEvidence) -> DataTier:
+        if self.tier_1.allows(score, evidence):
+            return DataTier.TIER_1
+        if self.tier_2.allows(score, evidence):
+            return DataTier.TIER_2
+        return DataTier.TIER_3
+
+
+def default_profile() -> ReliabilityProfile:
+    return ReliabilityProfile(
+        name="default",
+        description="General-purpose reliability scoring for API, analytics, and application data.",
+        weights=ReliabilityWeights(),
+        tier_1=TierCriterion(
+            minimum_score=90,
+            minimum_evidence={
+                "provenance": 0.9,
+                "cryptographic_verification": 0.9,
+                "schema_compliance": 0.9,
+            },
+        ),
+        tier_2=TierCriterion(
+            minimum_score=70,
+            minimum_evidence={
+                "provenance": 0.5,
+                "schema_compliance": 0.6,
+            },
+            require_timestamp_verified=False,
+        ),
+    )
+
+
+def scientific_profile() -> ReliabilityProfile:
+    return ReliabilityProfile(
+        name="scientific",
+        description="Stricter scoring for research data where calibration, provenance, and reproducibility matter.",
+        weights=ReliabilityWeights(
+            completeness=0.10,
+            consistency=0.12,
+            provenance=0.18,
+            cryptographic_verification=0.12,
+            calibration=0.16,
+            schema_compliance=0.10,
+            anomaly_detection=0.12,
+            duplicate_detection=0.04,
+            metadata_quality=0.06,
+        ),
+        tier_1=TierCriterion(
+            minimum_score=95,
+            minimum_evidence={
+                "completeness": 0.95,
+                "consistency": 0.90,
+                "provenance": 0.95,
+                "cryptographic_verification": 0.80,
+                "calibration": 0.90,
+                "schema_compliance": 0.95,
+                "anomaly_detection": 0.90,
+                "metadata_quality": 0.85,
+            },
+        ),
+        tier_2=TierCriterion(
+            minimum_score=80,
+            minimum_evidence={
+                "completeness": 0.80,
+                "consistency": 0.75,
+                "provenance": 0.75,
+                "calibration": 0.60,
+                "schema_compliance": 0.80,
+                "metadata_quality": 0.70,
+            },
+        ),
+    )
+
+
+def climate_record_profile() -> ReliabilityProfile:
+    return ReliabilityProfile(
+        name="climate-record",
+        description="Scientific profile for weather and climate record data, emphasizing calibrated instruments and station metadata.",
+        weights=ReliabilityWeights(
+            completeness=0.10,
+            consistency=0.15,
+            provenance=0.17,
+            cryptographic_verification=0.08,
+            calibration=0.20,
+            schema_compliance=0.08,
+            anomaly_detection=0.14,
+            duplicate_detection=0.03,
+            metadata_quality=0.05,
+        ),
+        tier_1=TierCriterion(
+            minimum_score=96,
+            minimum_evidence={
+                "completeness": 0.95,
+                "consistency": 0.95,
+                "provenance": 0.95,
+                "calibration": 0.95,
+                "schema_compliance": 0.90,
+                "anomaly_detection": 0.95,
+                "metadata_quality": 0.85,
+            },
+        ),
+        tier_2=TierCriterion(
+            minimum_score=82,
+            minimum_evidence={
+                "completeness": 0.85,
+                "consistency": 0.80,
+                "provenance": 0.80,
+                "calibration": 0.70,
+                "schema_compliance": 0.80,
+                "anomaly_detection": 0.75,
+                "metadata_quality": 0.70,
+            },
+        ),
+    )
+
+
 def compute_trace_hash(value: Any, source_id: str) -> str:
     payload = {"source_id": source_id, "value": value}
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
@@ -51,8 +213,14 @@ def compute_trace_hash(value: Any, source_id: str) -> str:
 
 
 class ReliabilityScanner:
-    def __init__(self, weights: Optional[ReliabilityWeights] = None) -> None:
-        self.weights = weights or ReliabilityWeights()
+    def __init__(
+        self,
+        weights: Optional[ReliabilityWeights] = None,
+        profile: Optional[ReliabilityProfile] = None,
+    ) -> None:
+        selected_profile = profile or default_profile()
+        self.profile = selected_profile
+        self.weights = weights or selected_profile.weights
 
     def scan(
         self,
@@ -95,17 +263,17 @@ class ReliabilityScanner:
         return max(0, min(100, round(weighted * 100)))
 
     def assign_tier(self, score: int, evidence: ValidationEvidence) -> DataTier:
-        if (
-            score >= 90
-            and evidence.provenance >= 0.9
-            and evidence.cryptographic_verification >= 0.9
-            and evidence.schema_compliance >= 0.9
-            and evidence.timestamp_verified
-        ):
-            return DataTier.TIER_1
-        if score >= 70 and evidence.provenance >= 0.5 and evidence.schema_compliance >= 0.6:
-            return DataTier.TIER_2
-        return DataTier.TIER_3
+        return self.profile.assign_tier(score, evidence)
+
+    def tier_evaluation(self, evidence: ValidationEvidence) -> dict[str, Any]:
+        score = self.score(evidence)
+        return {
+            "profile": self.profile.name,
+            "score": score,
+            "tier": self.assign_tier(score, evidence).name,
+            "tier_1": self._criterion_status(self.profile.tier_1, score, evidence),
+            "tier_2": self._criterion_status(self.profile.tier_2, score, evidence),
+        }
 
     def _adjust_evidence(
         self,
@@ -143,3 +311,23 @@ class ReliabilityScanner:
         if not isinstance(value, Mapping):
             return list(required_fields)
         return [field for field in required_fields if field not in value or value[field] is None]
+
+    def _criterion_status(
+        self,
+        criterion: TierCriterion,
+        score: int,
+        evidence: ValidationEvidence,
+    ) -> dict[str, Any]:
+        values = evidence.model_dump()
+        failed_evidence = {
+            field: {"actual": float(values[field]), "required": threshold}
+            for field, threshold in criterion.minimum_evidence.items()
+            if float(values[field]) < threshold
+        }
+        return {
+            "allowed": criterion.allows(score, evidence),
+            "minimum_score": criterion.minimum_score,
+            "score_passed": score >= criterion.minimum_score,
+            "timestamp_passed": evidence.timestamp_verified or not criterion.require_timestamp_verified,
+            "failed_evidence": failed_evidence,
+        }

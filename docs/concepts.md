@@ -24,3 +24,16 @@ The scan produces two outputs:
 - A standardized trust tier from Tier 1 to Tier 3.
 
 The score supports precise filtering and ranking. The tier gives downstream users a compact description of the record's verification level.
+
+## Tier criteria
+
+Tier assignment is profile-based. A profile defines:
+
+- Evidence weights for the numeric score.
+- Minimum score required for Tier 1 and Tier 2.
+- Minimum evidence thresholds that must be met for each tier.
+- Whether verified timestamps are required.
+
+The default profile is suitable for general application and analytics data. The scientific profile is stricter for research workflows. The climate-record profile is stricter again for weather and climate records, where calibrated instruments, station metadata, provenance, temporal consistency, and anomaly checks are critical.
+
+Tier 3 is the fallback tier when a record does not satisfy the Tier 1 or Tier 2 criteria. It does not mean the data is useless; it means the data requires additional validation or lower-confidence treatment.
