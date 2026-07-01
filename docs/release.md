@@ -36,7 +36,20 @@ To publish a version:
 3. Create and push a signed tag, for example `v0.1.0`.
 4. Create a GitHub Release from that tag.
 
-The release workflow builds the package, checks it with Twine, and publishes to PyPI.
+The release workflow builds the package, checks it with Twine, creates GitHub artifact attestations for the wheel and source distribution, and publishes to PyPI.
+
+## Release Provenance
+
+The publish workflow uses GitHub OIDC for PyPI trusted publishing and `actions/attest` for release artifact provenance. The attestation binds each artifact in `dist/` to the workflow that produced it, so consumers can verify that the published wheel and source distribution came from this repository's release process.
+
+After a release, verify artifacts with the GitHub CLI:
+
+```bash
+gh attestation verify dist/data_reliability_index-<version>-py3-none-any.whl --repo h3pdesign/data-reliability-index
+gh attestation verify dist/data_reliability_index-<version>.tar.gz --repo h3pdesign/data-reliability-index
+```
+
+Pull requests also run dependency review to block vulnerable package changes at moderate severity or higher.
 
 If PyPI returns `invalid-publisher`, the trusted publisher configuration does not match the GitHub OIDC claims. Recheck the project, owner, repository, workflow, and environment values above, then rerun the failed `Publish` workflow.
 

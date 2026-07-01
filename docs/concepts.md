@@ -4,6 +4,8 @@
 
 Every data point should carry explicit reliability metadata. That metadata can then be used to decide whether the value is admissible for a given study, product feature, or model training run.
 
+The SDK treats reliability as an evidence record, not a one-time label. A score is only useful when downstream systems can inspect which profile produced it, which source identifier was used, whether integrity checks passed, and which policy accepted or rejected the record.
+
 ## Tiers
 
 - **Tier 1**: Highest confidence data, usually calibrated and directly verified.
@@ -25,6 +27,8 @@ The scan produces two outputs:
 - The scoring profile name and version used to produce the result.
 
 The score supports precise filtering and ranking. The tier gives downstream users a compact description of the record's verification level.
+
+Use `ReliabilityScanner.score_breakdown()` when a score needs to be reviewed. It reports each evidence field, normalized weight, weighted contribution, timestamp penalty, uncertainty, and final score.
 
 ## Tier criteria
 
@@ -69,6 +73,44 @@ Templates are conservative starting points for common source types:
 - `climate-station`
 
 Use templates to avoid arbitrary all-`1.0` evidence blocks. Override values only when the application can justify the evidence from validation checks, source contracts, signatures, calibration records, or audit metadata.
+
+## Governance alignment
+
+The scoring fields are designed to support practical governance and audit needs:
+
+| Governance expectation | DRI support |
+| --- | --- |
+| Rich metadata and provenance | `source_id`, `profile_name`, `profile_version`, evidence notes, and document metadata. |
+| Integrity and traceability | Deterministic trace hashes plus optional HMAC signature verification. |
+| Reproducible decisions | Versioned profiles, explicit tier criteria, and structured policy assessments. |
+| Domain standards | Separate profiles for general, scientific, and climate-record data. |
+| AI/ML input control | Policy filtering before records are used for model training, evaluation, or inference features. |
+
+These controls complement broader data-management frameworks. They do not replace source-system authentication, access control, calibration programs, model risk management, or domain-specific validation protocols.
+
+## Custom profiles
+
+Teams can define their own `ReliabilityProfile` when the default, scientific, or climate-record profiles do not match the domain. Treat profile changes as methodology changes:
+
+- Give every profile a stable `name` and increment `version` when weights or tier criteria change.
+- Define what each evidence field means in the domain before tuning weights.
+- Keep Tier 1 thresholds conservative and tied to evidence that can be audited.
+- Add golden tests for boundary examples that must keep the same tier over time.
+- Store `profile_name`, `profile_version`, `evidence_hash`, and `evidence_snapshot` with accepted records.
+
+Do not tune a profile only to make existing datasets pass. If records are important but weakly evidenced, accept them with a lower tier, quarantine them, or use a policy with explicit lower-confidence treatment.
+
+## Quarantine workflow
+
+Production ingestion should preserve rejected records separately from trusted records. A typical flow is:
+
+1. Scan the input row with source id, evidence, and required fields.
+2. Assess the metadata with a `ReliabilityPolicy`.
+3. Write accepted rows and metadata to the trusted destination.
+4. Write rejected rows, decision reasons, and evidence metadata to quarantine storage.
+5. Reprocess quarantined records only after additional evidence is available.
+
+See `examples/quarantine_workflow.py` for a minimal version of this pattern.
 
 ## Authenticated integrity
 

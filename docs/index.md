@@ -6,6 +6,8 @@ Many workflows treat measured or collected values as facts even when source qual
 
 The goal is to make reliability classification a normal part of data handling. If data points are not classified and verified, downstream analysis can become difficult to reproduce and scientifically weak because the trust level of the underlying evidence was never made explicit.
 
+The model is intended to complement established data-governance practices: rich metadata, persistent source identifiers, documented provenance, reproducible scoring profiles, and explicit policy gates. In AI or machine-learning workflows, the same metadata helps teams separate high-confidence inputs from records that need quarantine, down-weighting, or additional review before they influence models.
+
 ## What it provides
 
 - Profile-based scoring for general, scientific, and climate-record data.
@@ -18,6 +20,8 @@ The goal is to make reliability classification a normal part of data handling. I
 - HMAC-SHA256 verification for authenticated ingestion systems.
 - Optional Pandas helpers for analysis pipelines.
 - FastAPI examples for ingestion validation.
+- Release provenance controls for package artifacts.
+- A small `dri` CLI for scanning JSON and JSONL files.
 
 ## Core workflow
 
@@ -26,6 +30,24 @@ The goal is to make reliability classification a normal part of data handling. I
 3. Assign a trust tier using explicit profile criteria.
 4. Enforce a `ReliabilityPolicy` before accepting records into trusted systems.
 5. Store the resulting metadata, profile name, and profile version as `dri_*` columns or a nested reliability document.
+
+## Reliability standards fit
+
+Data Reliability Index does not claim to certify datasets. It gives applications a consistent way to record evidence that supports common governance expectations:
+
+- Findable and reusable records need stable identifiers, rich metadata, provenance, and domain-relevant standards.
+- AI and analytics pipelines need data-quality signals that are valid, reliable, transparent, traceable, and auditable.
+- Production ingestion paths need integrity checks, explicit acceptance policy, and reproducible scoring versions.
+
+## Command line usage
+
+The package installs a `dri` command for local files and pipeline smoke tests:
+
+```bash
+dri scan records.jsonl --jsonl --source-id-field id --required-field temperature --required-field unit
+```
+
+Each output line contains the original value, reliability metadata, and policy decision. Use it to inspect datasets before writing ingestion code.
 
 ## Installation
 

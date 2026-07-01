@@ -30,3 +30,14 @@ Use the SDK with these assumptions:
 - Keep `source_id` values stable and non-secret; do not place tokens, passwords, or personal secrets in source identifiers or notes.
 - Apply database access controls to both raw records and reliability metadata.
 - Prefer signed upstream payloads or authenticated ingestion for high-trust Tier 1 workflows.
+
+## Package Supply Chain
+
+The repository uses PyPI trusted publishing through GitHub OIDC, dependency review on pull requests, and release artifact attestations for built distributions. These controls help users verify that package artifacts came from the repository release workflow and that dependency changes are reviewed before merge.
+
+After downloading release artifacts, users can verify provenance with:
+
+```bash
+gh attestation verify dist/data_reliability_index-<version>-py3-none-any.whl --repo h3pdesign/data-reliability-index
+gh attestation verify dist/data_reliability_index-<version>.tar.gz --repo h3pdesign/data-reliability-index
+```

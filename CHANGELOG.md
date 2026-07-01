@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.6.0] - 2026-07-01
+
+### Added
+
+- Score explainability through `ReliabilityScanner.score_breakdown()`.
+- Evidence hashes, evidence snapshots, evidence confidence, and uncertainty metadata on scored records.
+- SQL and document audit exports for policy decisions through `decision_to_columns()` and `decision_to_document()`.
+- Expanded SQL reliability metadata columns for evidence hash, evidence snapshot, confidence, and uncertainty.
+- `dri` CLI for scanning JSON and JSONL records.
+- Quarantine workflow and external data-quality mapping examples.
+- Golden profile tests for default, scientific, and climate-record tier behavior.
+- Dependency review workflow for pull requests.
+- GitHub artifact attestations for release distributions.
+- Documentation for custom profiles, score breakdowns, quarantine workflows, CLI usage, and release provenance.
+
+### Changed
+
+- Updated packaging metadata to include explicit license files with the current setuptools backend baseline.
+- Hardened GitHub Actions permissions to least-privilege read access where possible.
+- Improved SQL boolean restoration for common database string values.
+
 ## [0.5.0] - 2026-06-30
 
 ### Added

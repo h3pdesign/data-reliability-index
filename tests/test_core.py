@@ -5,11 +5,14 @@ from data_reliability.scanner import (
     TierCriterion,
     ValidationEvidence,
     climate_record_profile,
+    compute_evidence_hash,
     compute_hmac_signature,
     compute_trace_hash,
     scientific_profile,
 )
 from data_reliability.database import (
+    decision_to_columns,
+    decision_to_document,
     metadata_from_columns,
     metadata_from_document,
     metadata_to_columns,
@@ -43,6 +46,19 @@ def test_policy_assessment_explains_rejection():
     assert decision.timestamp_passed is False
     assert len(decision.reasons) == 3
 
+def test_policy_decision_exports_for_audit_logs():
+    meta = ReliabilityMetadata(score=85, tier=DataTier.TIER_3, source_id="s1", trace_hash="abc", timestamp_verified=False)
+    policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_2)
+
+    decision = policy.assess(meta)
+    columns = decision_to_columns(decision)
+    document = decision_to_document(decision)
+
+    assert columns["dri_decision_accepted"] is False
+    assert columns["dri_decision_maximum_tier"] == 2
+    assert "score 85" in columns["dri_decision_reasons"]
+    assert document["metadata"]["tier"] == 3
+
 def test_scanner_assigns_tier_one_for_verified_high_quality_data():
     scanner = ReliabilityScanner()
     value = {"temperature": 21.4, "unit": "celsius"}
@@ -67,6 +83,21 @@ def test_scanner_assigns_tier_one_for_verified_high_quality_data():
     assert reliable.reliability.profile_name == "default"
     assert reliable.reliability.profile_version == "1"
     assert reliable.reliability.trace_hash == compute_trace_hash(value, "sensor-a")
+    assert reliable.reliability.evidence_hash == compute_evidence_hash(evidence)
+    assert reliable.reliability.evidence_snapshot["calibration_version"] == "sensor-cal-2026-06"
+    assert reliable.reliability.evidence_confidence == 1.0
+    assert reliable.reliability.uncertainty == 0.0
+
+def test_score_breakdown_explains_contributions_and_penalty():
+    scanner = ReliabilityScanner()
+    evidence = ValidationEvidence(timestamp_verified=False, cryptographic_verification=1.0)
+
+    breakdown = scanner.score_breakdown(evidence)
+
+    assert breakdown["profile"] == "default"
+    assert breakdown["timestamp_penalty_multiplier"] == 0.9
+    assert breakdown["fields"]["cryptographic_verification"]["evidence"] == 1.0
+    assert breakdown["score"] == scanner.score(evidence)
 
 def test_scanner_penalizes_missing_required_fields():
     scanner = ReliabilityScanner()
@@ -211,6 +242,37 @@ def test_database_column_round_trip():
 
     assert columns["dri_score"] == 95
     assert columns["dri_profile_name"] == "default"
+    assert restored == meta
+
+def test_database_column_round_trip_parses_string_booleans():
+    row = {
+        "dri_score": 95,
+        "dri_tier": 1,
+        "dri_source_id": "sensor-a",
+        "dri_trace_hash": "abc",
+        "dri_timestamp_verified": "false",
+    }
+
+    restored = metadata_from_columns(row)
+
+    assert restored.timestamp_verified is False
+
+def test_database_column_round_trip_preserves_evidence_snapshot():
+    meta = ReliabilityMetadata(
+        score=95,
+        tier=DataTier.TIER_1,
+        source_id="sensor-a",
+        trace_hash="abc",
+        evidence_hash="hash",
+        evidence_snapshot={"provenance": 1.0},
+        evidence_confidence=0.9,
+        uncertainty=0.1,
+    )
+
+    columns = metadata_to_columns(meta)
+    restored = metadata_from_columns(columns)
+
+    assert isinstance(columns["dri_evidence_snapshot"], str)
     assert restored == meta
 
 def test_database_document_round_trip():

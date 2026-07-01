@@ -214,6 +214,11 @@ def compute_trace_hash(value: Any, source_id: str) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def compute_evidence_hash(evidence: ValidationEvidence) -> str:
+    encoded = json.dumps(evidence.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 SecretValue = Union[str, bytes]
 
 
@@ -262,6 +267,7 @@ class ReliabilityScanner:
         trace_hash = compute_trace_hash(value, source_id)
         score = self.score(adjusted)
         tier = self.assign_tier(score, adjusted)
+        evidence_snapshot = adjusted.model_dump(mode="json")
 
         metadata = ReliabilityMetadata(
             score=score,
@@ -270,8 +276,12 @@ class ReliabilityScanner:
             trace_hash=trace_hash,
             profile_name=self.profile.name,
             profile_version=self.profile.version,
+            evidence_hash=compute_evidence_hash(adjusted),
+            evidence_snapshot=evidence_snapshot,
             timestamp_verified=adjusted.timestamp_verified,
             calibration_version=adjusted.calibration_version,
+            evidence_confidence=self.evidence_confidence(adjusted),
+            uncertainty=self.uncertainty(adjusted),
             measurement_accuracy=adjusted.schema_compliance,
             temporal_integrity=1.0 if adjusted.timestamp_verified else 0.0,
             contextual_consistency=adjusted.consistency,
@@ -284,12 +294,41 @@ class ReliabilityScanner:
         return ReliableData(value=value, reliability=metadata)
 
     def score(self, evidence: ValidationEvidence) -> int:
+        return int(self.score_breakdown(evidence)["score"])
+
+    def score_breakdown(self, evidence: ValidationEvidence) -> dict[str, Any]:
         weights = self.weights.normalized()
         values = evidence.model_dump()
-        weighted = sum(float(values[name]) * weight for name, weight in weights.items())
-        if not evidence.timestamp_verified:
-            weighted *= 0.9
-        return max(0, min(100, round(weighted * 100)))
+        fields = {
+            name: {
+                "evidence": float(values[name]),
+                "weight": weight,
+                "contribution": float(values[name]) * weight * 100,
+            }
+            for name, weight in weights.items()
+        }
+        raw_score = sum(field["contribution"] for field in fields.values())
+        timestamp_penalty_multiplier = 1.0 if evidence.timestamp_verified else 0.9
+        adjusted_score = raw_score * timestamp_penalty_multiplier
+        score = max(0, min(100, round(adjusted_score)))
+        return {
+            "profile": self.profile.name,
+            "profile_version": self.profile.version,
+            "fields": fields,
+            "raw_score": raw_score,
+            "timestamp_verified": evidence.timestamp_verified,
+            "timestamp_penalty_multiplier": timestamp_penalty_multiplier,
+            "score": score,
+            "evidence_confidence": self.evidence_confidence(evidence),
+            "uncertainty": self.uncertainty(evidence),
+        }
+
+    def evidence_confidence(self, evidence: ValidationEvidence) -> float:
+        values = [float(getattr(evidence, field)) for field in EVIDENCE_FIELDS]
+        return max(0.0, min(1.0, round(sum(values) / len(values), 4)))
+
+    def uncertainty(self, evidence: ValidationEvidence) -> float:
+        return round(1.0 - self.evidence_confidence(evidence), 4)
 
     def assign_tier(self, score: int, evidence: ValidationEvidence) -> DataTier:
         return self.profile.assign_tier(score, evidence)

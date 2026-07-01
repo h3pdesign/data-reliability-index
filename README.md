@@ -19,9 +19,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.5.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.5.0)
+Latest release: [v0.6.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.6.0)
 
-The `v0.5.0` GitHub Release includes signed source, a wheel, and a source distribution. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.6.0` GitHub Release includes signed source, a wheel, source distribution, and artifact provenance attestations. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
 
 ## Features
 
@@ -38,6 +38,7 @@ The `v0.5.0` GitHub Release includes signed source, a wheel, and a source distri
 - Batch and streaming row scanning for small files and large datasets.
 - Optional Pandas helpers for filtering DataFrames by reliability metadata.
 - FastAPI example for rejecting low-reliability input at ingestion time.
+- CLI for scanning JSON and JSONL records.
 - MkDocs documentation for concepts and API usage.
 
 ## Installation
@@ -64,7 +65,7 @@ pip install "data-reliability-index[arrow]"
 You can also install the latest GitHub Release wheel directly:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.5.0/data_reliability_index-0.5.0-py3-none-any.whl
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.6.0/data_reliability_index-0.6.0-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -269,6 +270,16 @@ print(reliability_columns_ddl(dialect="postgres"))
 ```
 
 For SQL tables, store the generated `dri_*` columns beside the source data. For document databases, store `metadata_to_document(reliable.reliability)` as a nested reliability object.
+
+For rejected records, store `decision_to_document(policy.assess(reliable.reliability))` in quarantine or ingestion logs so policy reasons remain auditable.
+
+## CLI Usage
+
+```bash
+dri scan records.jsonl --jsonl --source-id-field id --required-field temperature --required-field unit
+```
+
+The CLI emits one JSON result per scanned record with the original value, reliability metadata, and policy decision.
 
 ## SDK and Security Notes
 

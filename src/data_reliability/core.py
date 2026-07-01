@@ -19,8 +19,12 @@ class ReliabilityMetadata(BaseModel):
     trace_hash: str = Field(min_length=1, max_length=128)
     profile_name: str = Field(default="default", min_length=1, max_length=128)
     profile_version: str = Field(default="1", min_length=1, max_length=64)
+    evidence_hash: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    evidence_snapshot: Optional[dict[str, Any]] = None
     timestamp_verified: bool = True
     calibration_version: Optional[str] = None
+    evidence_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    uncertainty: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     measurement_accuracy: float = Field(default=1.0, ge=0.0, le=1.0)
     temporal_integrity: float = Field(default=1.0, ge=0.0, le=1.0)
     contextual_consistency: float = Field(default=1.0, ge=0.0, le=1.0)
