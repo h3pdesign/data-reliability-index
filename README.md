@@ -1,7 +1,7 @@
 # Data Reliability Index
 
 [![CI](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml/badge.svg)](https://github.com/h3pdesign/data-reliability-index/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/data-reliability-index.svg)](https://pypi.org/project/data-reliability-index/)
+[![PyPI](https://img.shields.io/pypi/v/data-reliability-index.svg?cacheSeconds=300)](https://pypi.org/project/data-reliability-index/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/data-reliability-index.svg)](https://pypi.org/project/data-reliability-index/)
 [![License](https://img.shields.io/pypi/l/data-reliability-index.svg)](LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/h3pdesign/data-reliability-index.svg)](https://github.com/h3pdesign/data-reliability-index/releases)

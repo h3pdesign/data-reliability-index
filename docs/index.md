@@ -49,6 +49,8 @@ dri scan records.jsonl --jsonl --source-id-field id --required-field temperature
 
 Each output line contains the original value, reliability metadata, and policy decision. Use it to inspect datasets before writing ingestion code.
 
+For a complete implementation overview, see the [Architecture](architecture.md) diagram.
+
 ## Installation
 
 ```bash

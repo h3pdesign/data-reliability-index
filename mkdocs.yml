@@ -5,6 +5,7 @@ repo_name: h3pdesign/data-reliability-index
 repo_url: https://github.com/h3pdesign/data-reliability-index
 nav:
   - Home: index.md
+  - Architecture: architecture.md
   - Concepts: concepts.md
   - Release: release.md
   - API:
