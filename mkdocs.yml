@@ -7,6 +7,7 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - Concepts: concepts.md
+  - Integrity Checks: integrity-checks.md
   - Release: release.md
   - API:
       - Overview: api/index.md

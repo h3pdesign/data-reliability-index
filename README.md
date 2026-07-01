@@ -233,6 +233,8 @@ reliable = ReliabilityScanner().scan(
 
 Use HMAC secrets only for authenticated systems you control. For public third-party signatures, use the provider's signature scheme before passing the result into DRI evidence.
 
+For a simple pass/fail comparison of two records, see [Integrity Checks](docs/integrity-checks.md).
+
 ## Database Usage
 
 The SDK does not require a database driver. It emits plain dictionaries so the same reliability metadata can be stored in small local databases such as SQLite and DuckDB, production SQL databases such as PostgreSQL and MySQL, analytical warehouses, or document stores.
@@ -319,6 +321,7 @@ mkdocs serve
 Start with:
 
 - [Concepts](docs/concepts.md)
+- [Integrity checks](docs/integrity-checks.md)
 - [Core models](docs/api/core.md)
 - [Scanning engine](docs/api/scanner.md)
 - [Evidence templates](docs/api/templates.md)

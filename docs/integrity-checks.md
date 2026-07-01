@@ -1,0 +1,73 @@
+# Integrity Checks
+
+An integrity check verifies that a record still matches the payload fingerprint an application expects. It does not prove that the data is true, calibrated, or scientifically valid. It only answers a narrower question: did this payload change?
+
+Data Reliability Index supports deterministic trace hashes and HMAC-SHA256 signatures. Trace hashes are useful for detecting changed payloads. HMAC signatures are stronger for authenticated ingestion paths because the producer and consumer share a secret.
+
+## Trace Hash Example
+
+This example compares two records. The first record passes because it matches the original payload used to create the expected hash. The second record fails because the temperature value changed after the expected hash was created.
+
+```python
+from data_reliability import ReliabilityScanner, ValidationEvidence, compute_trace_hash
+
+scanner = ReliabilityScanner()
+
+original = {"temperature": 21.4, "unit": "celsius"}
+source_id = "sensor-a"
+
+expected_hash = compute_trace_hash(original, source_id)
+
+passed = scanner.scan(
+    original,
+    source_id=source_id,
+    evidence=ValidationEvidence(),
+    expected_trace_hash=expected_hash,
+)
+
+tampered = {"temperature": 99.9, "unit": "celsius"}
+
+failed = scanner.scan(
+    tampered,
+    source_id=source_id,
+    evidence=ValidationEvidence(),
+    expected_trace_hash=expected_hash,
+)
+
+print(passed.reliability.tamper_resistance)
+print(passed.reliability.notes)
+
+print(failed.reliability.tamper_resistance)
+print(failed.reliability.notes)
+```
+
+Conceptually:
+
+```text
+original record + source_id -> hash A
+same record + same source_id -> hash A -> passes
+
+changed record + same source_id -> hash B
+hash B does not match hash A -> fails
+```
+
+The failed scan sets `tamper_resistance` to `0.0` and adds a note:
+
+```text
+Trace hash verification failed.
+```
+
+## What This Does Not Prove
+
+A passing trace hash means the payload matches the expected fingerprint. It does not mean:
+
+- the measurement is true
+- the instrument was calibrated
+- the source is trustworthy
+- the record should automatically be accepted by policy
+
+Those questions are represented by other evidence fields, such as provenance, calibration, schema compliance, anomaly checks, timestamp verification, and metadata quality.
+
+## When to Use HMAC
+
+Use HMAC-SHA256 when an upstream producer and downstream consumer share a secret. A valid HMAC signature verifies both payload integrity and that the payload came through an authenticated path controlled by systems that know the secret.
