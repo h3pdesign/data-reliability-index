@@ -19,9 +19,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.6.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.6.0)
+Latest release: [v0.6.1](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.6.1)
 
-The `v0.6.0` GitHub Release includes signed source, a wheel, source distribution, and artifact provenance attestations. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.6.1` GitHub Release includes signed source, a wheel, source distribution, and artifact provenance attestations. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
 
 ## Features
 
@@ -65,7 +65,7 @@ pip install "data-reliability-index[arrow]"
 You can also install the latest GitHub Release wheel directly:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.6.0/data_reliability_index-0.6.0-py3-none-any.whl
+pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.6.1/data_reliability_index-0.6.1-py3-none-any.whl
 ```
 
 For local development from this repository:
@@ -233,7 +233,70 @@ reliable = ReliabilityScanner().scan(
 
 Use HMAC secrets only for authenticated systems you control. For public third-party signatures, use the provider's signature scheme before passing the result into DRI evidence.
 
-For a simple pass/fail comparison of two records, see [Integrity Checks](docs/integrity-checks.md).
+For payload integrity checks, see [Integrity Checks](docs/integrity-checks.md).
+For value-quality checks against predefined ground truth or reference values, see [Reference Comparisons](docs/reference-comparisons.md).
+For research workflows, see [Scientific Use](docs/scientific-use.md).
+
+## Ground Truth and Reference Checks
+
+For scientific or quality-controlled workflows, define reference values before the data is scored. The index can then show how well observed values match the predefined ground truth, tolerance, source, and method.
+
+```python
+from data_reliability import (
+    ReferenceValue,
+    ReliabilityScanner,
+    ValidationEvidence,
+    compare_to_references,
+    evidence_from_reference_comparison,
+    scientific_profile,
+)
+
+record = {"temperature": 21.4, "humidity": 48.0, "unit": "metric"}
+
+comparison = compare_to_references(
+    record,
+    [
+        ReferenceValue(
+            field="temperature",
+            value=21.5,
+            tolerance=0.2,
+            reference_id="lab-temp-gt",
+            source="validated lab baseline",
+            unit="celsius",
+        ),
+        ReferenceValue(
+            field="humidity",
+            value=50.0,
+            tolerance=3.0,
+            reference_id="lab-humidity-gt",
+            source="validated lab baseline",
+            unit="percent",
+        ),
+    ],
+)
+
+evidence = evidence_from_reference_comparison(
+    comparison,
+    base=ValidationEvidence(
+        provenance=1.0,
+        calibration=1.0,
+        schema_compliance=1.0,
+        metadata_quality=1.0,
+    ),
+)
+
+reliable = ReliabilityScanner(profile=scientific_profile()).scan(
+    record,
+    source_id="lab-sensor-a",
+    evidence=evidence,
+)
+
+print(comparison.passed)
+print(comparison.quality_score)
+print(reliable.reliability.score)
+```
+
+This is different from hash verification. Hashes show whether a payload changed. Reference checks show whether values are close enough to predefined quality targets.
 
 ## Database Usage
 
@@ -322,6 +385,8 @@ Start with:
 
 - [Concepts](docs/concepts.md)
 - [Integrity checks](docs/integrity-checks.md)
+- [Scientific use](docs/scientific-use.md)
+- [Reference comparisons](docs/reference-comparisons.md)
 - [Core models](docs/api/core.md)
 - [Scanning engine](docs/api/scanner.md)
 - [Evidence templates](docs/api/templates.md)

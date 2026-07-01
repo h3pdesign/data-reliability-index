@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.6.1] - 2026-07-01
+
+### Added
+
+- Reference and ground-truth comparison helpers through `ReferenceValue`, `compare_to_reference()`, `compare_to_references()`, and `evidence_from_reference_comparison()`.
+- Aggregated reference quality evidence for multi-field records, mapping predefined reference checks into consistency and anomaly-detection evidence.
+- Documentation for scientific use, value-quality checks, and the distinction between payload integrity and measurement quality.
+
 ## [0.6.0] - 2026-07-01
 
 ### Added

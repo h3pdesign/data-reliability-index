@@ -8,12 +8,15 @@ nav:
   - Architecture: architecture.md
   - Concepts: concepts.md
   - Integrity Checks: integrity-checks.md
+  - Scientific Use: scientific-use.md
+  - Reference Comparisons: reference-comparisons.md
   - Release: release.md
   - API:
       - Overview: api/index.md
       - Core Models: api/core.md
       - Scanning Engine: api/scanner.md
       - Evidence Templates: api/templates.md
+      - Reference Comparisons: api/reference.md
       - Database Helpers: api/database.md
       - Pandas Extension: api/pandas.md
       - CLI: api/cli.md

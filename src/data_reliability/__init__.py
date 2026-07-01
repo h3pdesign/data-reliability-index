@@ -15,6 +15,14 @@ from .database import (
     trusted_records,
 )
 from .pandas_ext import filter_reliable_df
+from .reference import (
+    ReferenceComparison,
+    ReferenceComparisonSet,
+    ReferenceValue,
+    compare_to_reference,
+    compare_to_references,
+    evidence_from_reference_comparison,
+)
 from .scanner import (
     ReliabilityProfile,
     ReliabilityScanner,
@@ -50,12 +58,17 @@ __all__ = [
     "ReliabilityProfile",
     "ReliabilityScanner",
     "ReliabilityWeights",
+    "ReferenceComparison",
+    "ReferenceComparisonSet",
+    "ReferenceValue",
     "TierCriterion",
     "ValidationEvidence",
     "RELIABILITY_COLUMNS",
     "EvidenceTemplate",
     "climate_record_profile",
     "climate_station_template",
+    "compare_to_reference",
+    "compare_to_references",
     "compute_evidence_hash",
     "compute_hmac_signature",
     "compute_trace_hash",
@@ -63,6 +76,7 @@ __all__ = [
     "default_profile",
     "decision_to_columns",
     "decision_to_document",
+    "evidence_from_reference_comparison",
     "evidence_from_template",
     "evidence_templates",
     "filter_reliable_df",
