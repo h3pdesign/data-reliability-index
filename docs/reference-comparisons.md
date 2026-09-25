@@ -8,6 +8,8 @@ For value quality, define a reference or ground-truth value before scanning the 
 
 ```python
 from data_reliability import (
+    DataTier,
+    ReliabilityPolicy,
     ReliabilityScanner,
     ReferenceValue,
     ValidationEvidence,
@@ -65,6 +67,13 @@ print(comparison.passed)
 print(comparison.quality_score)
 print(reliable.reliability.score)
 print(reliable.reliability.notes)
+
+policy = ReliabilityPolicy(
+    minimum_score=70,
+    maximum_tier=DataTier.TIER_3,
+    require_reference_checks=True,
+)
+print(policy.assess(reliable.reliability))
 ```
 
 This compares observed values with predefined reference values. The tolerances are part of the method and should be chosen from domain knowledge, instrument uncertainty, calibration documents, validation studies, or a documented quality rule.
@@ -79,7 +88,28 @@ Reference comparison results become evidence for:
 | `anomaly_detection` | Whether the observed value behaves like an expected value or an outlier. |
 | `notes` | The observed value, reference value, tolerance, and pass/fail result. |
 
-The helper does not silently set provenance, calibration, or schema evidence. Those must still come from the surrounding workflow. A value can be close to a reference but still have weak provenance, missing calibration, or incomplete metadata.
+Without a supplied `base`, the helper defaults completeness, duplicate detection, provenance, calibration, schema compliance, and metadata quality to zero, and timestamp verification to false. Only consistency and anomaly agreement are derived from the comparison. Supply other evidence from actual checks; reference agreement alone does not establish it. Explicitly constructed `ValidationEvidence` retains legacy defaults for compatibility, so set its fields deliberately.
+
+## Acceptance And Aggregation
+
+Each comparison passes when `abs(observed - reference) <= tolerance`. Inputs must be finite, and tolerance must be positive. Values and tolerances must already use compatible units; the `unit` field is descriptive and performs no conversion. The heuristic agreement score is `1 / (1 + absolute_error / tolerance)`, rounded to four decimal places. It is `1` at exact agreement and `0.5` at the tolerance boundary, not a probability of correctness.
+
+A comparison set reports the arithmetic mean agreement score and passes only when every check passes. When converting a failed set to evidence, consistency and anomaly evidence are capped by the lowest failed comparison score. Passing fields cannot dilute that failure. Applying further comparisons preserves earlier failures and their audit records.
+
+Use `ReliabilityPolicy(require_reference_checks=True, ...)` when reference agreement is mandatory. This rejects missing checks independently of score and tier; known failures are rejected even when the option is off. The option defaults to `False` for workflows without reference checks. The evidence snapshot retains `reference_checks_passed` and structured `reference_comparisons`, including values, tolerances, units, reference IDs, and results, through SQL and document export. The scanner rechecks comparison records against the scanned observation and rejects mismatches or claimed passes without comparison records. The SDK does not authenticate the reference source.
+
+## Ingestion Workflow
+
+Pass references directly to the scanner to compare the actual record at ingestion:
+
+```python
+references = [ReferenceValue(field="temperature", value=21.5, tolerance=0.2)]
+reliable = ReliabilityScanner().scan(
+    {"temperature": 21.4}, source_id="sensor-a", references=references,
+)
+```
+
+Construct reference definitions once and reuse them across records. Missing or invalid observations produce failed reference evidence with a diagnostic note, allowing ingestion to quarantine those records and continue. No-evidence scans start with score zero and an unverified timestamp. Reference agreement supplies only the dimensions it measures; a strict policy still needs other independently established evidence.
 
 ## Good Reference Sources
 

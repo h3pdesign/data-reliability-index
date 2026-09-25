@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.7.0] - 2026-09-25
+
+### Added
+
+- Direct `scan(references=...)` ingestion and CLI `--references`, `--require-reference-checks`, and `--fail-on-rejection` options for streaming quality gates.
+- Optional `require_reference_checks` policy gate rejecting missing or failed reference evidence independently of score and tier.
+- Structured reference comparison results in evidence snapshots and reference gate results in decision exports.
+
+### Fixed
+
+- Missing or invalid observations are rejected with reference diagnostics while subsequent streamed records continue.
+- Template overrides now undergo validation instead of bypassing numeric constraints.
+- Scanner reference gates reject comparisons reused for different observations and claimed passes without comparison records.
+- Successful HMAC verification no longer overrides a failed trace-hash check.
+- Failed reference comparisons can no longer be diluted by successful fields when converted to evidence, or erased by later successful comparisons.
+- Non-finite reference inputs, negative/non-finite weights, and non-finite tier thresholds are rejected.
+- Reference evidence no longer defaults provenance, schema compliance, or metadata quality to perfect scores when no base is supplied.
+
+### Changed
+
+- Publishing now requires a matching version tag and passing tests before building and uploading distributions.
+- Scans without evidence start at zero reliability with an unverified timestamp. Known reference failures always reject; the reference-policy option additionally rejects missing checks.
+- Quick start now demonstrates predefined reference checks; scientific guidance distinguishes heuristic scores from probabilities and measurement uncertainty.
+- Evidence snapshots and hashes include new reference fields. Recompute evidence hashes with the matching SDK version; existing stored hashes are not rewritten.
+
 ## [0.6.1] - 2026-07-01
 
 ### Added

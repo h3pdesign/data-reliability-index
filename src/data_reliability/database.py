@@ -141,9 +141,11 @@ def decision_to_columns(decision: ReliabilityDecision, *, prefix: str = "dri_dec
         f"{prefix}score_passed": decision.score_passed,
         f"{prefix}tier_passed": decision.tier_passed,
         f"{prefix}timestamp_passed": decision.timestamp_passed,
+        f"{prefix}reference_passed": decision.reference_passed,
         f"{prefix}minimum_score": decision.policy.minimum_score,
         f"{prefix}maximum_tier": int(decision.policy.maximum_tier),
         f"{prefix}require_timestamp_verified": decision.policy.require_timestamp_verified,
+        f"{prefix}require_reference_checks": decision.policy.require_reference_checks,
         f"{prefix}reasons": "; ".join(decision.reasons),
     }
 

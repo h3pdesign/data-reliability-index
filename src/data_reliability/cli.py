@@ -9,6 +9,7 @@ from typing import Any, ContextManager, TextIO
 
 from .core import DataTier, ReliabilityPolicy
 from .database import decision_to_document, metadata_to_document
+from .reference import ReferenceValue
 from .scanner import ReliabilityProfile, ReliabilityScanner, ValidationEvidence, climate_record_profile, default_profile, scientific_profile
 
 
@@ -27,6 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     scan_parser.add_argument("--maximum-tier", type=int, choices=[1, 2, 3], default=2)
     scan_parser.add_argument("--allow-unverified-timestamp", action="store_true")
     scan_parser.add_argument("--evidence", help="JSON object with ValidationEvidence fields.")
+    scan_parser.add_argument("--references", help="JSON file containing a list of predefined ReferenceValue objects.")
+    scan_parser.add_argument("--require-reference-checks", action="store_true")
+    scan_parser.add_argument("--fail-on-rejection", action="store_true", help="Exit with status 1 if any record is rejected.")
 
     args = parser.parse_args(argv)
     if args.command == "scan":
@@ -40,22 +44,32 @@ def _scan_command(args: argparse.Namespace) -> int:
         minimum_score=args.minimum_score,
         maximum_tier=DataTier(args.maximum_tier),
         require_timestamp_verified=not args.allow_unverified_timestamp,
+        require_reference_checks=args.require_reference_checks,
     )
-    evidence = ValidationEvidence.model_validate(json.loads(args.evidence)) if args.evidence else ValidationEvidence()
+    evidence = ValidationEvidence.model_validate(json.loads(args.evidence)) if args.evidence else None
+    references = None
+    if args.references:
+        with open(args.references, encoding="utf-8") as handle:
+            definitions = json.load(handle)
+        if not isinstance(definitions, list) or not definitions:
+            raise ValueError("--references must contain a non-empty JSON list")
+        references = [ReferenceValue.model_validate(item) for item in definitions]
+    rejected = False
 
     with _open_input(args.input) as handle:
         records = _read_jsonl(handle) if args.jsonl else _read_json(handle)
         for record in records:
             source_id = _source_id(record, args.source_id, args.source_id_field)
-            reliable = scanner.scan(record, source_id=source_id, evidence=evidence, required_fields=args.required_field)
+            reliable = scanner.scan(record, source_id=source_id, evidence=evidence, required_fields=args.required_field, references=references)
             decision = policy.assess(reliable.reliability)
+            rejected = rejected or not decision.accepted
             output = {
                 "value": reliable.value,
                 "reliability": metadata_to_document(reliable.reliability),
                 "decision": decision_to_document(decision),
             }
             print(json.dumps(output, sort_keys=True))
-    return 0
+    return 1 if rejected and args.fail_on_rejection else 0
 
 
 def _profile(name: str) -> ReliabilityProfile:

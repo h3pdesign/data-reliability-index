@@ -2,6 +2,7 @@ import pytest
 from data_reliability.core import ReliabilityMetadata, ReliabilityPolicy, DataTier
 from data_reliability.scanner import (
     ReliabilityScanner,
+    ReliabilityWeights,
     TierCriterion,
     ValidationEvidence,
     climate_record_profile,
@@ -28,6 +29,31 @@ def test_policy_allows():
     meta = ReliabilityMetadata(score=95, tier=DataTier.TIER_1, source_id="s1", trace_hash="abc")
     policy = ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_2)
     assert policy.allows(meta) is True
+
+
+def test_scan_without_evidence_does_not_invent_quality():
+    record = ReliabilityScanner().scan({"temperature": 999}, "unknown")
+    assert record.reliability.score == 0
+    assert record.reliability.tier == DataTier.TIER_3
+    assert record.reliability.timestamp_verified is False
+
+
+def test_valid_signature_cannot_erase_failed_hash():
+    value = {"temperature": 21.4}
+    record = ReliabilityScanner().scan(
+        value, "lab", expected_trace_hash="incorrect",
+        expected_signature=compute_hmac_signature(value, "lab", "secret"),
+        signing_secret="secret",
+    )
+    assert record.reliability.tamper_resistance == 0.0
+
+
+@pytest.mark.parametrize("value", [-1, 2, float("nan"), float("inf")])
+def test_template_overrides_are_validated(value):
+    from data_reliability import evidence_from_template
+
+    with pytest.raises(ValueError):
+        evidence_from_template("trusted-api", consistency=value)
 
 def test_policy_rejects_low_score():
     meta = ReliabilityMetadata(score=85, tier=DataTier.TIER_1, source_id="s1", trace_hash="abc")
@@ -233,6 +259,23 @@ def test_climate_record_profile_rejects_uncalibrated_extreme_records():
 def test_tier_criterion_rejects_unknown_evidence_fields():
     with pytest.raises(ValueError, match="Unknown evidence fields"):
         TierCriterion(minimum_score=90, minimum_evidence={"unknown": 0.9})
+
+
+@pytest.mark.parametrize("value", [-0.1, float("nan"), float("inf"), -float("inf")])
+def test_weights_reject_invalid_values(value):
+    with pytest.raises(ValueError):
+        ReliabilityWeights(consistency=value)
+
+
+def test_weights_reject_zero_total():
+    weights = ReliabilityWeights(**{name: 0.0 for name in ReliabilityWeights.model_fields})
+    with pytest.raises(ValueError, match="positive"):
+        weights.normalized()
+
+
+def test_tier_criterion_rejects_nan_threshold():
+    with pytest.raises(ValueError, match="thresholds"):
+        TierCriterion(minimum_score=90, minimum_evidence={"consistency": float("nan")})
 
 def test_database_column_round_trip():
     meta = ReliabilityMetadata(score=95, tier=DataTier.TIER_1, source_id="sensor-a", trace_hash="abc")

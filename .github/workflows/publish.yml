@@ -27,7 +27,20 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: python -m pip install -e ".[build]"
+        run: python -m pip install -e ".[build,test]"
+
+      - name: Verify release version
+        run: |
+          python - <<'PY'
+          import os
+          from importlib.metadata import version
+          expected = "v" + version("data-reliability-index")
+          if os.environ["GITHUB_REF_TYPE"] != "tag" or os.environ["GITHUB_REF_NAME"] != expected:
+              raise SystemExit(f"Publishing requires the matching version tag: {expected}")
+          PY
+
+      - name: Test release
+        run: python -m pytest
 
       - name: Build distributions
         run: python -m build

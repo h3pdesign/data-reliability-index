@@ -45,6 +45,7 @@ class ReliabilityDecision(BaseModel):
     score_passed: bool
     tier_passed: bool
     timestamp_passed: bool
+    reference_passed: bool = True
     policy: "ReliabilityPolicy"
     metadata: ReliabilityMetadata
     reasons: list[str] = Field(default_factory=list)
@@ -54,11 +55,16 @@ class ReliabilityPolicy(BaseModel):
     minimum_score: int = Field(ge=0, le=100)
     maximum_tier: DataTier
     require_timestamp_verified: bool = True
+    require_reference_checks: bool = False
 
     def assess(self, meta: ReliabilityMetadata) -> ReliabilityDecision:
         score_passed = meta.score >= self.minimum_score
         tier_passed = meta.tier <= self.maximum_tier
         timestamp_passed = meta.timestamp_verified or not self.require_timestamp_verified
+        reference_status = (meta.evidence_snapshot or {}).get("reference_checks_passed")
+        reference_passed = reference_status is not False and (
+            not self.require_reference_checks or reference_status is True
+        )
         reasons: list[str] = []
         if not score_passed:
             reasons.append(f"score {meta.score} is below required minimum {self.minimum_score}")
@@ -66,11 +72,14 @@ class ReliabilityPolicy(BaseModel):
             reasons.append(f"tier {meta.tier.name} is above allowed maximum {self.maximum_tier.name}")
         if not timestamp_passed:
             reasons.append("timestamp verification is required")
+        if not reference_passed:
+            reasons.append("reference checks failed" if reference_status is False else "passing reference checks are required (missing evidence)")
         return ReliabilityDecision(
-            accepted=score_passed and tier_passed and timestamp_passed,
+            accepted=score_passed and tier_passed and timestamp_passed and reference_passed,
             score_passed=score_passed,
             tier_passed=tier_passed,
             timestamp_passed=timestamp_passed,
+            reference_passed=reference_passed,
             policy=self,
             metadata=meta,
             reasons=reasons,

@@ -3,12 +3,16 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
 from .core import DataTier, ReliableData, ReliabilityMetadata
+
+if TYPE_CHECKING:
+    from .reference import ReferenceValue
 
 EVIDENCE_FIELDS = (
     "completeness",
@@ -35,6 +39,8 @@ class ValidationEvidence(BaseModel):
     metadata_quality: float = Field(default=1.0, ge=0.0, le=1.0)
     timestamp_verified: bool = True
     calibration_version: Optional[str] = None
+    reference_checks_passed: Optional[bool] = None
+    reference_comparisons: list[dict[str, Any]] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
 
@@ -49,11 +55,18 @@ class ReliabilityWeights(BaseModel):
     duplicate_detection: float = 0.06
     metadata_quality: float = 0.08
 
+    @field_validator("*")
+    @classmethod
+    def validate_weight(cls, value: float) -> float:
+        if not math.isfinite(value) or value < 0.0:
+            raise ValueError("Reliability weights must be finite and non-negative.")
+        return value
+
     def normalized(self) -> dict[str, float]:
         values = self.model_dump()
         total = sum(values.values())
-        if total <= 0:
-            raise ValueError("Reliability weights must sum to a positive number.")
+        if not math.isfinite(total) or total <= 0:
+            raise ValueError("Reliability weights must sum to a finite positive number.")
         return {key: value / total for key, value in values.items()}
 
 
@@ -69,7 +82,7 @@ class TierCriterion(BaseModel):
         unknown_fields = sorted(set(value) - set(EVIDENCE_FIELDS))
         if unknown_fields:
             raise ValueError(f"Unknown evidence fields: {', '.join(unknown_fields)}")
-        invalid = {field: threshold for field, threshold in value.items() if threshold < 0.0 or threshold > 1.0}
+        invalid = {field: threshold for field, threshold in value.items() if not math.isfinite(threshold) or threshold < 0.0 or threshold > 1.0}
         if invalid:
             details = ", ".join(f"{field}={threshold}" for field, threshold in invalid.items())
             raise ValueError(f"Evidence thresholds must be between 0.0 and 1.0: {details}")
@@ -254,11 +267,33 @@ class ReliabilityScanner:
         expected_signature: Optional[str] = None,
         signing_secret: Optional[SecretValue] = None,
         required_fields: Optional[Sequence[str]] = None,
+        references: Optional[Sequence[ReferenceValue]] = None,
     ) -> ReliableData:
+        if references is not None:
+            from .reference import compare_to_references, evidence_from_reference_comparison
+
+            if not references:
+                raise ValueError("at least one reference value is required")
+            try:
+                comparison = compare_to_references(value, references)
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                evidence = evidence or ValidationEvidence(
+                    **{name: 0.0 for name in EVIDENCE_FIELDS}, timestamp_verified=False,
+                )
+                evidence = evidence.model_copy(update={
+                    "reference_checks_passed": False,
+                    "consistency": 0.0,
+                    "anomaly_detection": 0.0,
+                    "notes": [*evidence.notes, f"Reference comparison could not be evaluated: {exc}"],
+                })
+            else:
+                evidence = evidence_from_reference_comparison(comparison, base=evidence)
         adjusted = self._adjust_evidence(
             value,
             source_id,
-            evidence or ValidationEvidence(),
+            evidence if evidence is not None else ValidationEvidence(
+                **{name: 0.0 for name in EVIDENCE_FIELDS}, timestamp_verified=False,
+            ),
             expected_trace_hash,
             expected_signature,
             signing_secret,
@@ -356,6 +391,26 @@ class ReliabilityScanner:
         update: dict[str, Any] = {}
         notes = list(evidence.notes)
 
+        if evidence.reference_checks_passed is not None or evidence.reference_comparisons:
+            # Validate comparisons against this payload, not a previously scanned value.
+            from .reference import ReferenceComparison, compare_to_reference
+
+            reference_passed = bool(evidence.reference_comparisons)
+            for item in evidence.reference_comparisons:
+                try:
+                    stored = ReferenceComparison.model_validate(item)
+                    actual = compare_to_reference(
+                        value, stored.reference, tolerance=stored.tolerance, field=stored.field,
+                    )
+                    reference_passed = reference_passed and (
+                        actual.observed == stored.observed and actual.passed and stored.passed
+                    )
+                except (ValueError, TypeError, KeyError, OverflowError):
+                    reference_passed = False
+            update["reference_checks_passed"] = reference_passed and evidence.reference_checks_passed is not False
+            if not update["reference_checks_passed"]:
+                notes.append("Reference checks failed, are missing, or do not match the scanned value.")
+
         if required_fields is not None:
             missing = self._missing_fields(value, required_fields)
             if missing:
@@ -376,7 +431,7 @@ class ReliabilityScanner:
                 update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
                 notes.append("Signature verification failed: signing secret is missing.")
             elif verify_hmac_signature(value, source_id, signing_secret, expected_signature):
-                update["cryptographic_verification"] = max(evidence.cryptographic_verification, 1.0)
+                update["cryptographic_verification"] = min(update.get("cryptographic_verification", 1.0), 1.0)
             else:
                 update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
                 notes.append("Signature verification failed.")

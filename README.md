@@ -23,9 +23,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.6.1](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.6.1)
+Latest release: [v0.7.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.7.0)
 
-The `v0.6.1` GitHub Release includes signed source, a wheel, source distribution, and artifact provenance attestations. The package is published on PyPI as [`data-reliability-index`](https://pypi.org/project/data-reliability-index/).
+The `v0.7.0` release adds mandatory reference-check policies and stricter validation of quality evidence. Wheels and source distributions are published on PyPI with artifact provenance attestations by the release workflow.
 
 ## Features
 
@@ -66,10 +66,10 @@ pip install "data-reliability-index[polars]"
 pip install "data-reliability-index[arrow]"
 ```
 
-You can also install the latest GitHub Release wheel directly:
+To pin the release version:
 
 ```bash
-pip install https://github.com/h3pdesign/data-reliability-index/releases/download/v0.6.1/data_reliability_index-0.6.1-py3-none-any.whl
+pip install data-reliability-index==0.7.0
 ```
 
 For local development from this repository:
@@ -81,28 +81,41 @@ pip install -e ".[test]"
 ## Quick Start
 
 ```python
-from data_reliability import DataTier, ReliabilityPolicy, ReliabilityScanner, evidence_from_template
+from data_reliability import (
+    DataTier, ReliabilityPolicy, ReliabilityScanner, ValidationEvidence,
+    compare_to_reference, evidence_from_reference_comparison,
+)
 
 scanner = ReliabilityScanner()
-evidence = evidence_from_template(
-    "verified-sensor",
-    calibration_version="sensor-cal-2026-06",
+value = {"temperature": 21.4, "unit": "celsius"}
+# Define the reference and tolerance before inspecting the observation.
+comparison = compare_to_reference(
+    value, reference=21.5, tolerance=0.2, field="temperature",
+    reference_id="lab-baseline-v1", unit="celsius",
+)
+evidence = evidence_from_reference_comparison(
+    comparison,
+    # These illustrative inputs must come from your actual validation checks.
+    base=ValidationEvidence(provenance=1.0, calibration=1.0),
 )
 
 data = scanner.scan(
-    {"temperature": 21.4, "unit": "celsius"},
+    value,
     source_id="sensor-a",
     evidence=evidence,
 )
 
 policy = ReliabilityPolicy(
-    minimum_score=90,
+    minimum_score=70,
     maximum_tier=DataTier.TIER_2,
+    require_reference_checks=True,
 )
 
 assert policy.resolve(data) == {"temperature": 21.4, "unit": "celsius"}
 assert policy.assess(data.reliability).accepted is True
 ```
+
+`require_reference_checks=True` rejects failed or missing reference evidence even when the overall score meets the threshold. Keep each comparison tied to the same observation supplied to `scan()`. See [Reference Comparisons](docs/reference-comparisons.md) for aggregation and audit details.
 
 ## How the Data Reliability Index Works
 
@@ -110,12 +123,12 @@ The Data Reliability Index models the complete lifecycle of a data point as it m
 
 Raw data can enter from APIs, IoT devices, calibrated sensors, databases, files, and user submissions. Because these sources differ in quality and provenance, every incoming record starts as untrusted until it has been analyzed.
 
-The scanning engine evaluates validation evidence for completeness, consistency, provenance, cryptographic verification, calibration, schema compliance, anomaly detection, duplicate detection, and metadata quality. These checks provide an objective assessment of how trustworthy each data point is.
+The scanning engine combines supplied validation evidence for completeness, consistency, provenance, cryptographic verification, calibration, schema compliance, anomaly detection, duplicate detection, and metadata quality. Reference helpers perform numeric comparisons; the scanner also supports required-field and integrity checks. Other evidence must come from your validators. Default evidence values and templates are assumptions, not proof that checks ran.
 
 Each scan produces:
 
-- A numeric reliability score from `0` to `100`, representing overall confidence.
-- A standardized trust tier from `TIER_1` to `TIER_3`, describing source and verification level.
+- A numeric reliability score from `0` to `100`, summarizing evidence under the selected profile.
+- A project-defined trust tier from `TIER_1` to `TIER_3`, based on that profile's thresholds.
 - A trace hash that can be used to verify whether the data changed.
 - The scoring profile name and version used for reproducibility.
 - A `ReliableData` wrapper containing the original value and its reliability metadata.
@@ -147,11 +160,11 @@ evidence = evidence_from_template(
 
 ## Trust Tiers
 
-The system classifies data into three standardized trust levels:
+The system classifies data into three profile-defined trust levels. These are not externally certified quality grades:
 
 | Tier | Trust level | Typical sources | Intended use |
 | --- | --- | --- | --- |
-| `TIER_1` | Highest trust | Cryptographically verified data, calibrated sensor measurements, direct measurements from trusted APIs | Scientific, safety-critical, and mission-critical applications |
+| `TIER_1` | Highest profile tier | Data meeting the profile's strongest evidence thresholds | Workflows with separately validated domain requirements |
 | `TIER_2` | High trust | Cleaned secondary datasets, indirect measurements, partially validated or derived information | Analytics, forecasting, and most production workloads |
 | `TIER_3` | Moderate trust | User-generated content, self-reported information, weakly verified external sources | Exploratory analysis and workflows requiring additional validation |
 
@@ -182,19 +195,9 @@ The package includes three profiles:
 | `scientific_profile()` | Research data across scientific fields | Increases weight and thresholds for provenance, calibration, consistency, anomaly checks, and reproducibility signals |
 | `climate_record_profile()` | Weather and climate record data | Emphasizes calibrated instruments, station metadata, consistency with comparison stations, anomaly checks, and provenance |
 
-The scoring model is stable within a profile. Different use cases change their acceptance thresholds or active profile, not the meaning of reliability itself.
+Scores are comparable only when the evidence definitions, weights, profile version, and validation methods are compatible. A profile name alone does not establish comparability.
 
-Examples:
-
-- A medical research study may require `TIER_1` data with a score of `99` or higher.
-- An autonomous vehicle system may accept only `TIER_1` data above `95`.
-- Financial risk models may require `TIER_1` or high-quality `TIER_2` data.
-- Product analytics might accept `TIER_2` data with a threshold of `75`.
-- Research prototypes may intentionally include `TIER_3` data while applying lower confidence weights.
-
-Because every dataset is evaluated using the same transparent methodology, organizations can define their own acceptance criteria without changing how reliability is measured.
-
-Instead of asking whether a dataset can be trusted, users can inspect objective metrics: reliability score, standardized trust tier, provenance, and validation history.
+Choose thresholds using representative reference data and assess false acceptance and false rejection on held-out records. A score of `95` does not mean a 95% probability that the observation is correct. The legacy `evidence_confidence` and `uncertainty` fields are the mean evidence value and its complement, not statistical confidence or measurement uncertainty. See [Scientific Use](docs/scientific-use.md) for interpretation and validation requirements.
 
 You can inspect why a record received its tier:
 

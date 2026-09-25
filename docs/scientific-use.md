@@ -39,6 +39,16 @@ For measurement quality, compare observed values against predefined reference or
 5. Add golden tests for boundary records that must keep stable tier behavior across releases.
 6. Treat DRI scores as decision support, not as proof that a scientific claim is true.
 
+## Validation And Limits
+
+The [W3C Data Quality Vocabulary](https://www.w3.org/TR/vocab-dqv/) distinguishes quality measurements, metrics, provenance, and policies so consumers can judge fitness for purpose. DRI follows that separation conceptually; it does not implement DQV serialization or claim standards certification.
+
+For measurement uncertainty and conformity decisions, consult the [JCGM guides, including GUM and JCGM 106](https://www.bipm.org/en/committees/jc/jcgm/publications). DRI's tolerance comparison implements a simple acceptance rule. It does not propagate instrument or reference uncertainty, apply guard bands, or calculate coverage probabilities. Its legacy `uncertainty` field is merely one minus the mean supplied evidence value.
+
+Before using a profile for a scientific decision, define the measurand, compatible units, reference source and version, tolerance rationale, and handling of missing observations. Keep calibration evidence separate from agreement with a reference. Validate the chosen policy against independent labeled records, report false acceptance and false rejection rates with sample sizes, and check sensitivity to weights and tolerances. Historical baselines describe expected behavior and are not automatically ground truth.
+
+Enable `require_reference_checks=True` for mandatory reference checks. Archive structured comparisons with their evidence snapshot and preserve the exact profile configuration as well as its version. SDK tests establish software behavior; they do not establish that a profile is scientifically validated for a particular dataset.
+
 ## Example Interpretation
 
 A calibrated sensor reading with strong provenance, complete metadata, verified timestamp, and a matching trace hash can reasonably be treated as high-evidence data.

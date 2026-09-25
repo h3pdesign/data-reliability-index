@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from math import isfinite
 from typing import Any, Optional, Sequence
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .scanner import ValidationEvidence
 
 
 class ReferenceComparison(BaseModel):
     """Comparison of an observed value against a predefined reference value."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
 
     reference_id: Optional[str] = None
     field: Optional[str] = None
@@ -29,6 +32,8 @@ class ReferenceComparison(BaseModel):
 class ReferenceValue(BaseModel):
     """Predefined reference or ground-truth value used for quality checks."""
 
+    model_config = ConfigDict(allow_inf_nan=False)
+
     field: str
     value: float
     tolerance: float = Field(gt=0.0)
@@ -36,6 +41,11 @@ class ReferenceValue(BaseModel):
     source: Optional[str] = None
     method: Optional[str] = None
     unit: Optional[str] = None
+
+    @field_validator("value", "tolerance", mode="before")
+    @classmethod
+    def validate_numeric_input(cls, value: Any) -> float:
+        return _finite_number(value, "reference value or tolerance")
 
 
 class ReferenceComparisonSet(BaseModel):
@@ -64,13 +74,15 @@ def compare_to_reference(
     and HMAC signatures, which only verify payload integrity.
     """
 
-    tolerance_value = float(tolerance)
+    tolerance_value = _finite_number(tolerance, "tolerance")
     if tolerance_value <= 0.0:
         raise ValueError("tolerance must be greater than 0.0")
 
-    observed = float(_extract_observed(value, field))
-    reference_value = float(reference)
+    observed = _finite_number(_extract_observed(value, field), "observed")
+    reference_value = _finite_number(reference, "reference")
     absolute_error = abs(observed - reference_value)
+    if not isfinite(absolute_error):
+        raise ValueError("absolute error exceeds the finite numeric range")
     error_ratio = absolute_error / tolerance_value
     relative_error = None if reference_value == 0.0 else absolute_error / abs(reference_value)
     quality_score = round(1.0 / (1.0 + error_ratio), 4)
@@ -148,10 +160,10 @@ def evidence_from_reference_comparison(
     comparison: ReferenceComparison | ReferenceComparisonSet,
     *,
     base: Optional[ValidationEvidence] = None,
-    provenance: float = 1.0,
-    schema_compliance: float = 1.0,
+    provenance: float = 0.0,
+    schema_compliance: float = 0.0,
     calibration: float = 0.0,
-    metadata_quality: float = 1.0,
+    metadata_quality: float = 0.0,
 ) -> ValidationEvidence:
     """Turn a reference comparison into scanner evidence.
 
@@ -162,7 +174,16 @@ def evidence_from_reference_comparison(
     """
 
     quality_score = comparison.quality_score
+    comparisons = comparison.comparisons if isinstance(comparison, ReferenceComparisonSet) else [comparison]
+    if not comparisons:
+        raise ValueError("at least one reference comparison is required")
+    failed_scores = [item.quality_score for item in comparisons if not item.passed]
+    if failed_scores:
+        quality_score = min(quality_score, *failed_scores)
     evidence = base or ValidationEvidence(
+        completeness=0.0,
+        duplicate_detection=0.0,
+        timestamp_verified=False,
         provenance=provenance,
         schema_compliance=schema_compliance,
         calibration=calibration,
@@ -172,9 +193,23 @@ def evidence_from_reference_comparison(
         update={
             "consistency": min(evidence.consistency, quality_score),
             "anomaly_detection": min(evidence.anomaly_detection, quality_score),
+            "reference_checks_passed": comparison.passed and all(item.passed for item in comparisons) and evidence.reference_checks_passed is not False,
+            "reference_comparisons": [
+                *evidence.reference_comparisons,
+                *(item.model_dump(mode="json") for item in comparisons),
+            ],
             "notes": [*evidence.notes, *comparison.notes],
         }
     )
+
+
+def _finite_number(value: Any, name: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a finite number, not a boolean")
+    result = float(value)
+    if not isfinite(result):
+        raise ValueError(f"{name} must be a finite number")
+    return result
 
 
 def _extract_observed(value: Any, field: Optional[str]) -> Any:

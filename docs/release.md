@@ -36,7 +36,7 @@ To publish a version:
 3. Create and push a signed tag, for example `v0.1.0`.
 4. Create a GitHub Release from that tag.
 
-The release workflow builds the package, checks it with Twine, creates GitHub artifact attestations for the wheel and source distribution, and publishes to PyPI.
+The release workflow verifies that the selected tag matches the installed package version, runs the tests, builds the package, checks it with Twine, creates GitHub artifact attestations for the wheel and source distribution, and publishes to PyPI. Manual dispatch must select the matching release tag, not a branch.
 
 ## Release Provenance
 

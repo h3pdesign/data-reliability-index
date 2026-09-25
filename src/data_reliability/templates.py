@@ -17,7 +17,7 @@ class EvidenceTemplate(BaseModel):
         unknown_fields = sorted(set(overrides) - set(EVIDENCE_FIELDS) - {"timestamp_verified", "calibration_version", "notes"})
         if unknown_fields:
             raise ValueError(f"Unknown evidence fields: {', '.join(unknown_fields)}")
-        return self.evidence.model_copy(update=overrides)
+        return ValidationEvidence.model_validate({**self.evidence.model_dump(), **overrides})
 
 
 def verified_sensor_template() -> EvidenceTemplate:
