@@ -23,9 +23,9 @@ Supported Python versions: `3.9` through `3.14`.
 
 ## Release Status
 
-Latest release: [v0.7.0](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.7.0)
+Latest release: [v0.7.1](https://github.com/h3pdesign/data-reliability-index/releases/tag/v0.7.1)
 
-The `v0.7.0` release adds mandatory reference-check policies and stricter validation of quality evidence. Wheels and source distributions are published on PyPI with artifact provenance attestations by the release workflow.
+The `v0.7.1` release prevents failed integrity and required-field checks from passing policy, verifies derived reference results, and reduces routine scoring overhead. Wheels and source distributions are published on PyPI with artifact provenance attestations by the release workflow.
 
 ## Features
 
@@ -69,7 +69,7 @@ pip install "data-reliability-index[arrow]"
 To pin the release version:
 
 ```bash
-pip install data-reliability-index==0.7.0
+pip install data-reliability-index==0.7.1
 ```
 
 For local development from this repository:
@@ -116,6 +116,8 @@ assert policy.assess(data.reliability).accepted is True
 ```
 
 `require_reference_checks=True` rejects failed or missing reference evidence even when the overall score meets the threshold. Keep each comparison tied to the same observation supplied to `scan()`. See [Reference Comparisons](docs/reference-comparisons.md) for aggregation and audit details.
+
+Failed required-field checks or explicitly requested hash/HMAC checks also reject independently of score and tier. Their outcomes are retained in the evidence snapshot and reported by `decision.validation_passed`. An omitted check is unknown, not a verified pass; legacy snapshots without these fields retain their previous policy behavior.
 
 ## How the Data Reliability Index Works
 

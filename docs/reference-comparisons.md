@@ -92,6 +92,8 @@ Without a supplied `base`, the helper defaults completeness, duplicate detection
 
 ## Acceptance And Aggregation
 
+The scanner also checks stored absolute error, relative error, and agreement score against its recalculation. Altered derived results cannot be used to inflate evidence while retaining a passing reference status.
+
 Each comparison passes when `abs(observed - reference) <= tolerance`. Inputs must be finite, and tolerance must be positive. Values and tolerances must already use compatible units; the `unit` field is descriptive and performs no conversion. The heuristic agreement score is `1 / (1 + absolute_error / tolerance)`, rounded to four decimal places. It is `1` at exact agreement and `0.5` at the tolerance boundary, not a probability of correctness.
 
 A comparison set reports the arithmetic mean agreement score and passes only when every check passes. When converting a failed set to evidence, consistency and anomaly evidence are capped by the lowest failed comparison score. Passing fields cannot dilute that failure. Applying further comparisons preserves earlier failures and their audit records.

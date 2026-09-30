@@ -46,6 +46,7 @@ class ReliabilityDecision(BaseModel):
     tier_passed: bool
     timestamp_passed: bool
     reference_passed: bool = True
+    validation_passed: bool = True
     policy: "ReliabilityPolicy"
     metadata: ReliabilityMetadata
     reasons: list[str] = Field(default_factory=list)
@@ -62,9 +63,15 @@ class ReliabilityPolicy(BaseModel):
         tier_passed = meta.tier <= self.maximum_tier
         timestamp_passed = meta.timestamp_verified or not self.require_timestamp_verified
         reference_status = (meta.evidence_snapshot or {}).get("reference_checks_passed")
-        reference_passed = reference_status is not False and (
+        reference_passed = (reference_status is None or reference_status is True) and (
             not self.require_reference_checks or reference_status is True
         )
+        snapshot = meta.evidence_snapshot or {}
+        failed_checks = [
+            name for name in ("required_fields_passed", "integrity_checks_passed")
+            if snapshot.get(name) is not None and snapshot.get(name) is not True
+        ]
+        validation_passed = not failed_checks
         reasons: list[str] = []
         if not score_passed:
             reasons.append(f"score {meta.score} is below required minimum {self.minimum_score}")
@@ -74,12 +81,15 @@ class ReliabilityPolicy(BaseModel):
             reasons.append("timestamp verification is required")
         if not reference_passed:
             reasons.append("reference checks failed" if reference_status is False else "passing reference checks are required (missing evidence)")
+        for name in failed_checks:
+            reasons.append(f"{name}: check failed or result is invalid")
         return ReliabilityDecision(
-            accepted=score_passed and tier_passed and timestamp_passed and reference_passed,
+            accepted=score_passed and tier_passed and timestamp_passed and reference_passed and validation_passed,
             score_passed=score_passed,
             tier_passed=tier_passed,
             timestamp_passed=timestamp_passed,
             reference_passed=reference_passed,
+            validation_passed=validation_passed,
             policy=self,
             metadata=meta,
             reasons=reasons,

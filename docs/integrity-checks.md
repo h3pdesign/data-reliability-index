@@ -2,6 +2,8 @@
 
 An integrity check verifies that a record still matches the payload fingerprint an application expects. It does not prove that the data is true, calibrated, or scientifically valid. It only answers a narrower question: did this exact payload change?
 
+Since v0.7.1, a failed explicitly requested hash or HMAC check sets `integrity_checks_passed=False` in the evidence snapshot. Policies reject that record regardless of its aggregate score. Missing required fields similarly set `required_fields_passed=False`. These outcomes survive SQL and document round trips; `decision.validation_passed` and decision reasons expose the rejection. Existing metadata without these outcomes remains compatible, so re-scan old records when these guarantees are required.
+
 Data Reliability Index supports deterministic trace hashes and HMAC-SHA256 signatures. Trace hashes are useful for detecting changed payloads. HMAC signatures are stronger for authenticated ingestion paths because the producer and consumer share a secret.
 
 ## What Is Being Compared

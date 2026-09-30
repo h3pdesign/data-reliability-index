@@ -191,6 +191,14 @@ def test_reference_tolerance_boundary_is_inclusive():
     assert not compare_to_reference(1.500001, 1, tolerance=0.5).passed
 
 
+def test_scanner_rejects_inflated_comparison_quality():
+    comparison = compare_to_reference(1.25, 1, tolerance=0.5)
+    comparison.quality_score = 1.0
+    evidence = evidence_from_reference_comparison(comparison)
+    record = ReliabilityScanner().scan(1.25, "lab", evidence)
+    assert record.reliability.evidence_snapshot["reference_checks_passed"] is False
+
+
 @pytest.mark.parametrize("value", [2.0, None, True, float("nan")])
 def test_scanner_rejects_reused_reference_evidence(value):
     evidence = evidence_from_reference_comparison(compare_to_reference(1.0, 1.0, tolerance=0.5))

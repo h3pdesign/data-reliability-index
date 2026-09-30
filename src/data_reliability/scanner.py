@@ -40,6 +40,8 @@ class ValidationEvidence(BaseModel):
     timestamp_verified: bool = True
     calibration_version: Optional[str] = None
     reference_checks_passed: Optional[bool] = None
+    required_fields_passed: Optional[bool] = None
+    integrity_checks_passed: Optional[bool] = None
     reference_comparisons: list[dict[str, Any]] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
@@ -303,6 +305,7 @@ class ReliabilityScanner:
         score = self.score(adjusted)
         tier = self.assign_tier(score, adjusted)
         evidence_snapshot = adjusted.model_dump(mode="json")
+        confidence = self.evidence_confidence(adjusted)
 
         metadata = ReliabilityMetadata(
             score=score,
@@ -315,8 +318,8 @@ class ReliabilityScanner:
             evidence_snapshot=evidence_snapshot,
             timestamp_verified=adjusted.timestamp_verified,
             calibration_version=adjusted.calibration_version,
-            evidence_confidence=self.evidence_confidence(adjusted),
-            uncertainty=self.uncertainty(adjusted),
+            evidence_confidence=confidence,
+            uncertainty=round(1.0 - confidence, 4),
             measurement_accuracy=adjusted.schema_compliance,
             temporal_integrity=1.0 if adjusted.timestamp_verified else 0.0,
             contextual_consistency=adjusted.consistency,
@@ -329,7 +332,12 @@ class ReliabilityScanner:
         return ReliableData(value=value, reliability=metadata)
 
     def score(self, evidence: ValidationEvidence) -> int:
-        return int(self.score_breakdown(evidence)["score"])
+        raw_score = sum(
+            float(getattr(evidence, name)) * weight * 100
+            for name, weight in self.weights.normalized().items()
+        )
+        multiplier = 1.0 if evidence.timestamp_verified else 0.9
+        return max(0, min(100, round(raw_score * multiplier)))
 
     def score_breakdown(self, evidence: ValidationEvidence) -> dict[str, Any]:
         weights = self.weights.normalized()
@@ -404,6 +412,9 @@ class ReliabilityScanner:
                     )
                     reference_passed = reference_passed and (
                         actual.observed == stored.observed and actual.passed and stored.passed
+                        and actual.absolute_error == stored.absolute_error
+                        and actual.relative_error == stored.relative_error
+                        and actual.quality_score == stored.quality_score
                     )
                 except (ValueError, TypeError, KeyError, OverflowError):
                     reference_passed = False
@@ -413,6 +424,7 @@ class ReliabilityScanner:
 
         if required_fields is not None:
             missing = self._missing_fields(value, required_fields)
+            update["required_fields_passed"] = not missing and evidence.required_fields_passed is not False
             if missing:
                 update["completeness"] = min(evidence.completeness, 0.0)
                 update["schema_compliance"] = min(evidence.schema_compliance, 0.0)
@@ -420,6 +432,7 @@ class ReliabilityScanner:
 
         if expected_trace_hash is not None:
             actual = compute_trace_hash(value, source_id)
+            update["integrity_checks_passed"] = actual == expected_trace_hash and evidence.integrity_checks_passed is not False
             if actual == expected_trace_hash:
                 update["cryptographic_verification"] = max(evidence.cryptographic_verification, 1.0)
             else:
@@ -427,10 +440,16 @@ class ReliabilityScanner:
                 notes.append("Trace hash verification failed.")
 
         if expected_signature is not None:
+            signature_passed = signing_secret is not None and verify_hmac_signature(
+                value, source_id, signing_secret, expected_signature,
+            )
+            update["integrity_checks_passed"] = signature_passed and update.get(
+                "integrity_checks_passed", evidence.integrity_checks_passed,
+            ) is not False
             if signing_secret is None:
                 update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)
                 notes.append("Signature verification failed: signing secret is missing.")
-            elif verify_hmac_signature(value, source_id, signing_secret, expected_signature):
+            elif signature_passed:
                 update["cryptographic_verification"] = min(update.get("cryptographic_verification", 1.0), 1.0)
             else:
                 update["cryptographic_verification"] = min(evidence.cryptographic_verification, 0.0)

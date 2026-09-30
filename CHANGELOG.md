@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning where practical.
 
+## [0.7.1] - 2026-09-30
+
+### Fixed
+
+- Failed explicit integrity checks and missing required fields now reject independently of score and tier, including after SQL/document storage.
+- Policy evaluation rejects malformed stored check flags instead of treating truthy values as valid outcomes.
+- Scanner reference validation detects altered error and agreement-score values.
+
+### Changed
+
+- Routine scoring avoids building explanation dictionaries and redundantly calculating confidence; score breakdown remains available explicitly.
+- Evidence snapshots include optional required-field and integrity outcomes; decision exports include `validation_passed`. New evidence hashes reflect the additional fields. Existing snapshots retain their previous behavior when these checks are absent.
+
 ## [0.7.0] - 2026-09-25
 
 ### Added

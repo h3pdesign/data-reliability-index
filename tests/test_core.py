@@ -31,6 +31,61 @@ def test_policy_allows():
     assert policy.allows(meta) is True
 
 
+@pytest.mark.parametrize("checks", [
+    {"expected_trace_hash": "wrong"},
+    {"expected_signature": "wrong", "signing_secret": "secret"},
+    {"expected_signature": "missing-secret"},
+    {"required_fields": ["missing"]},
+])
+def test_failed_checks_reject_even_under_permissive_policy_after_storage(checks):
+    record = ReliabilityScanner().scan(
+        {"value": 1}, "lab", ValidationEvidence(calibration=1, cryptographic_verification=1), **checks,
+    )
+    policy = ReliabilityPolicy(minimum_score=0, maximum_tier=DataTier.TIER_3)
+    for metadata in (
+        record.reliability,
+        metadata_from_columns(metadata_to_columns(record.reliability)),
+        metadata_from_document(metadata_to_document(record.reliability)),
+    ):
+        decision = policy.assess(metadata)
+        assert not decision.accepted
+        assert not decision.validation_passed
+        assert decision.reasons
+        assert not decision_to_columns(decision)["dri_decision_validation_passed"]
+
+
+def test_valid_checks_still_accept():
+    value = {"value": 1}
+    record = ReliabilityScanner().scan(
+        value, "lab", ValidationEvidence(calibration=1),
+        required_fields=["value"], expected_trace_hash=compute_trace_hash(value, "lab"),
+        expected_signature=compute_hmac_signature(value, "lab", "secret"), signing_secret="secret",
+    )
+    assert ReliabilityPolicy(minimum_score=90, maximum_tier=DataTier.TIER_1).allows(record.reliability)
+
+
+@pytest.mark.parametrize("status", [False, 0, "false", "true", 1])
+def test_malformed_stored_check_flags_do_not_bypass_policy(status):
+    for key in ("reference_checks_passed", "required_fields_passed", "integrity_checks_passed"):
+        meta = ReliabilityMetadata(score=100, tier=DataTier.TIER_1, source_id="lab", trace_hash="abc",
+                                   evidence_snapshot={key: status})
+        assert not ReliabilityPolicy(minimum_score=0, maximum_tier=DataTier.TIER_3).allows(meta)
+
+
+def test_fast_score_matches_explanation_across_profiles():
+    import random
+    from data_reliability.scanner import EVIDENCE_FIELDS, default_profile
+
+    rng = random.Random(723)
+    for profile in (default_profile(), scientific_profile(), climate_record_profile()):
+        scanner = ReliabilityScanner(profile=profile)
+        for _ in range(100):
+            evidence = ValidationEvidence(
+                **{name: rng.random() for name in EVIDENCE_FIELDS}, timestamp_verified=rng.choice([True, False]),
+            )
+            assert scanner.score(evidence) == scanner.score_breakdown(evidence)["score"]
+
+
 def test_scan_without_evidence_does_not_invent_quality():
     record = ReliabilityScanner().scan({"temperature": 999}, "unknown")
     assert record.reliability.score == 0
