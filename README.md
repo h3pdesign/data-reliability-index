@@ -17,9 +17,11 @@
 
 Data Reliability Index is a Python toolkit that helps applications decide whether data meets defined quality requirements before using it in reports, databases, or machine learning.
 
-Imagine a temperature sensor reports **21.4 degrees Celsius**. Is that a good measurement? The number alone cannot tell you. You need a trustworthy reference, an acceptable tolerance, and information about how the measurement was collected.
+Imagine you are checking a temperature sensor in a stable water bath. An independent, calibrated reference thermometer reads **21.5 degrees Celsius**, while the sensor being checked reads **21.4 degrees Celsius**. Both measure the same conditions at the same time.
 
-You could define a reference of **21.5 degrees Celsius**, allowing a difference of **0.2 degrees**. The toolkit checks each measurement against that rule. A reading of 21.4 passes; 28 fails. Missing or invalid measurements are also flagged.
+Your test procedure specifies an acceptable difference of **0.2 degrees Celsius**, chosen before inspecting the sensor results. The difference here is 0.1 degrees, so the reading passes this reference check. A reading of 28 degrees would differ by 6.5 degrees and fail. Missing or non-numeric readings are rejected when scanned against the reference too. The reference must apply to the observation: 28 degrees could be perfectly valid in a different environment.
+
+Passing this comparison establishes agreement within the chosen tolerance for that observation. Overall acceptance also depends on your other quality requirements, such as documented provenance and validation history.
 
 It combines these checks with supplied evidence about things such as calibration, source, completeness, and validation history. Each scanned record receives a **score from 0 to 100** and a quality tier. An acceptance policy then produces an accept-or-reject decision with reasons. Failed required checks cannot be hidden by a high overall score.
 
@@ -88,42 +90,56 @@ pip install -e ".[test]"
 
 ## Quick Start
 
+This example assumes that independent checks have established the record's completeness, source, calibration history, schema, metadata, and timestamp. Those illustrative results are supplied explicitly. No signature or duplicate check is claimed. The reference and tolerance belong to the controlled test described above; choose real tolerances from your test procedure, including the relevant measurement uncertainty.
+
 ```python
 from data_reliability import (
-    DataTier, ReliabilityPolicy, ReliabilityScanner, ValidationEvidence,
-    compare_to_reference, evidence_from_reference_comparison,
+    DataTier, ReferenceValue, ReliabilityPolicy, ReliabilityScanner,
+    ValidationEvidence,
 )
 
 scanner = ReliabilityScanner()
-value = {"temperature": 21.4, "unit": "celsius"}
-# Define the reference and tolerance before inspecting the observation.
-comparison = compare_to_reference(
-    value, reference=21.5, tolerance=0.2, field="temperature",
+# Record the independent reference and predefined acceptance tolerance.
+reference = ReferenceValue(
+    field="temperature", value=21.5, tolerance=0.2,
     reference_id="lab-baseline-v1", unit="celsius",
+    source="independent calibrated reference thermometer",
 )
-evidence = evidence_from_reference_comparison(
-    comparison,
-    # These illustrative inputs must come from your actual validation checks.
-    base=ValidationEvidence(provenance=1.0, calibration=1.0),
+evidence = ValidationEvidence(
+    completeness=1.0,
+    consistency=1.0,           # Capped by the actual reference agreement below.
+    provenance=1.0,
+    cryptographic_verification=0.0,
+    calibration=1.0,
+    schema_compliance=1.0,
+    anomaly_detection=1.0,     # Capped by the actual reference agreement below.
+    duplicate_detection=0.0,
+    metadata_quality=1.0,
+    timestamp_verified=True,
+    calibration_version="sensor-calibration-v1",
 )
 
-data = scanner.scan(
-    value,
-    source_id="sensor-a",
-    evidence=evidence,
-)
-
+# Illustrative thresholds, not a universal scientific acceptance standard.
 policy = ReliabilityPolicy(
     minimum_score=70,
     maximum_tier=DataTier.TIER_2,
     require_reference_checks=True,
 )
 
-assert policy.resolve(data) == {"temperature": 21.4, "unit": "celsius"}
-assert policy.assess(data.reliability).accepted is True
+for temperature, expected_acceptance in [(21.4, True), (28.0, False)]:
+    data = scanner.scan(
+        {"temperature": temperature, "unit": "celsius"},
+        source_id="sensor-a",
+        evidence=evidence,
+        references=[reference],
+        required_fields=["temperature", "unit"],
+    )
+    decision = policy.assess(data.reliability)
+    print(temperature, decision.accepted, decision.reasons)
+    assert decision.accepted is expected_acceptance
 ```
 
-`require_reference_checks=True` rejects failed or missing reference evidence even when the overall score meets the threshold. Keep each comparison tied to the same observation supplied to `scan()`. See [Reference Comparisons](docs/reference-comparisons.md) for aggregation and audit details.
+The first reading is accepted under this example policy; the second is rejected. `references=[reference]` evaluates each actual observation, and `require_reference_checks=True` requires a passing result. All temperatures must already use compatible units: the SDK does not convert units or verify a calibration certificate. See [Reference Comparisons](docs/reference-comparisons.md) for aggregation and audit details.
 
 Failed required-field checks or explicitly requested hash/HMAC checks also reject independently of score and tier. Their outcomes are retained in the evidence snapshot and reported by `decision.validation_passed`. An omitted check is unknown, not a verified pass; legacy snapshots without these fields retain their previous policy behavior.
 
