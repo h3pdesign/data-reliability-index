@@ -13,11 +13,19 @@
 
 ![Data Reliability Index core features infographic](https://raw.githubusercontent.com/h3pdesign/data-reliability-index/main/docs/assets/data-reliability-index-core-features.png)
 
-Data Reliability Index is a typed Python SDK for classifying the reliability of measured, collected, derived, or user-submitted data before it is used for analysis, databases, APIs, machine learning, or scientific conclusions.
+## Understand the Quality of Your Data Before You Use It
 
-The project starts from a practical problem: many datasets contain values that are treated as facts even though their source, calibration, provenance, verification history, uncertainty, or integrity is unknown. In real workflows, measured data is often copied into databases, dashboards, research notebooks, and models without every data point being classified by reliability. That makes later analysis fragile, because high-quality measurements, partially verified records, historical observations, and weakly sourced submissions can all be mixed together as if they had the same evidential value.
+Data Reliability Index is a Python toolkit that helps applications decide whether data meets defined quality requirements before using it in reports, databases, or machine learning.
 
-Data Reliability Index is built around a simple rule: every data point should carry the evidence needed to decide whether it is safe to use. Each record should be scored, assigned a trust tier, linked to provenance and audit metadata, and filtered by explicit policy before it influences decisions. Without this kind of reliability classification, analysis can become difficult to reproduce, hard to defend, and scientifically weak because the trust level of the underlying data was never verified.
+Imagine a temperature sensor reports **21.4 degrees Celsius**. Is that a good measurement? The number alone cannot tell you. You need a trustworthy reference, an acceptable tolerance, and information about how the measurement was collected.
+
+You could define a reference of **21.5 degrees Celsius**, allowing a difference of **0.2 degrees**. The toolkit checks each measurement against that rule. A reading of 21.4 passes; 28 fails. Missing or invalid measurements are also flagged.
+
+It combines these checks with supplied evidence about things such as calibration, source, completeness, and validation history. Each scanned record receives a **score from 0 to 100** and a quality tier. An acceptance policy then produces an accept-or-reject decision with reasons. Failed required checks cannot be hidden by a high overall score.
+
+This is useful for checking sensor readings, filtering data before analysis, preparing machine-learning datasets, and keeping a traceable explanation of why records were accepted or rejected. It can process records individually or continuously as they arrive.
+
+The important limitation: **it assesses data against the references, rules, and evidence you provide.** It cannot discover the truth by itself. A score of 95 does not mean a 95% chance that a value is correct. Its purpose is to make data-quality decisions explicit, consistent, and inspectable.
 
 Supported Python versions: `3.9` through `3.14`.
 
